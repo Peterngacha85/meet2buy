@@ -10,6 +10,8 @@ Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 se
 | POST | `/register` | 🔓 | Buyer registration |
 | POST | `/register-seller` | 🔓 | Body `{ account: {name,email,phone,password}, store: {name, description, departments:[{name,wing}]}, payout }` → seller + pending shop. Field errors use paths like `account.email`, `payout.tillNumber` |
 | POST | `/login` | 🔓 | Login, sets cookie |
+| POST | `/google` | 🔓 | `{ credential }` = Google ID token. Verified against `GOOGLE_CLIENT_ID`; logs in, links an existing account with the same verified email, or creates a **buyer**. Refused for admin accounts (403) |
+| GET | `/config` | 🔓 | `{ googleClientId }` (null when Google sign-in is off) |
 | POST | `/logout` | 👤 | Clears cookie |
 | GET | `/me` | 👤 | Current user (+ store if seller) |
 | PATCH | `/me` | 👤 | Update name, phone, avatar, password |

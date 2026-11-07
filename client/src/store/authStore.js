@@ -32,6 +32,13 @@ export const useAuthStore = create((set) => ({
     return user;
   },
 
+  async loginWithGoogle(credential) {
+    await unwrap(api.post('/auth/google', { credential }));
+    const { user, store } = await unwrap(api.get('/auth/me'));
+    set({ user, store, status: 'ready' });
+    return user;
+  },
+
   async registerSeller(data) {
     const { user, store } = await unwrap(api.post('/auth/register-seller', data));
     set({ user, store, status: 'ready' });

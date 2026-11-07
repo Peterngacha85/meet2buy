@@ -19,16 +19,30 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      // Buyers and sellers need a phone (M-Pesa, delivery). The .env admin may not have one.
+      // Sellers need a phone. Buyers too, except Google sign-ups (they give their M-Pesa number at checkout).
+      // The .env admin may not have one.
       required: [
         function phoneRequired() {
-          return this.role !== 'admin';
+          return this.role === 'seller' || (this.role === 'buyer' && !this.googleId);
         },
         'Phone number is required',
       ],
       validate: { validator: isValidPhone, message: 'Phone must be 2547XXXXXXXX or 2541XXXXXXXX' },
     },
-    password: { type: String, required: true, minlength: 8, select: false },
+    // Google-only accounts have no password until they set one.
+    password: {
+      type: String,
+      required: [
+        function passwordRequired() {
+          return !this.googleId;
+        },
+        'Password is required',
+      ],
+      minlength: 8,
+      select: false,
+    },
+    // Not select:false — the phone/password rules above read it on every save. Hidden in toJSON.
+    googleId: { type: String, unique: true, sparse: true },
     role: { type: String, enum: ROLES, default: 'buyer' },
     avatar: { type: String, default: null },
     status: { type: String, enum: USER_STATUSES, default: 'active' },
@@ -43,6 +57,7 @@ const userSchema = new mongoose.Schema(
         delete ret._id;
         delete ret.__v;
         delete ret.password;
+        delete ret.googleId;
         return ret;
       },
     },
@@ -54,7 +69,8 @@ userSchema.pre('save', async function hashPassword() {
   this.password = await bcrypt.hash(this.password, env.BCRYPT_ROUNDS);
 });
 
-userSchema.methods.comparePassword = function comparePassword(candidate) {
+userSchema.methods.comparePassword = async function comparePassword(candidate) {
+  if (!this.password || typeof candidate !== 'string') return false;
   return bcrypt.compare(candidate, this.password);
 };
 

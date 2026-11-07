@@ -1,6 +1,8 @@
+import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 import { Store, privateStore } from '../models/Store.js';
 import { resolveDepartments } from '../services/storeService.js';
+import { isGoogleConfigured, verifyGoogleIdToken } from '../services/google.js';
 import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
 import { clearAuthCookie, setAuthCookie } from '../utils/token.js';
@@ -65,10 +67,51 @@ export async function login(req, res) {
   ok(res, { user });
 }
 
+// POST /api/auth/google { credential } — log in or sign up (as a buyer) with a Google ID token
+export async function googleLogin(req, res) {
+  if (!isGoogleConfigured()) throw new AppError(503, 'Google sign-in is not set up yet');
+
+  const google = await verifyGoogleIdToken(req.body.credential);
+  if (!google) throw new AppError(401, 'Google sign-in failed. Please try again.');
+  if (!google.emailVerified) throw new AppError(401, 'Your Google email is not verified');
+
+  let user = (await User.findOne({ googleId: google.sub })) ?? (await User.findOne({ email: google.email }));
+
+  if (user) {
+    if (user.status === 'disabled') throw new AppError(401, 'Incorrect email or password');
+    // Admin access stays on email + password (the owner admin is managed from .env).
+    if (user.role === 'admin') throw new AppError(403, 'Admins log in with email and password');
+    if (user.status !== 'active') throw new AppError(403, 'This account has been suspended. Contact Meet2buy support.');
+    if (!user.googleId) {
+      // Same verified email → link the Google account to the existing one.
+      user.googleId = google.sub;
+      if (!user.avatar && google.picture) user.avatar = google.picture;
+      await user.save();
+    }
+    setAuthCookie(res, user);
+    return ok(res, { user, isNew: false });
+  }
+
+  user = await User.create({
+    name: (google.name || google.email.split('@')[0]).slice(0, 80),
+    email: google.email,
+    googleId: google.sub,
+    avatar: google.picture ?? null,
+    role: 'buyer',
+  });
+  setAuthCookie(res, user);
+  ok(res, { user, isNew: true }, 201);
+}
+
 // POST /api/auth/logout
 export function logout(_req, res) {
   clearAuthCookie(res);
   ok(res, null);
+}
+
+// GET /api/auth/config — public sign-in options for the client
+export function config(_req, res) {
+  ok(res, { googleClientId: isGoogleConfigured() ? env.GOOGLE_CLIENT_ID : null });
 }
 
 // GET /api/auth/me — sellers also get their shop
@@ -87,7 +130,8 @@ export async function updateMe(req, res) {
   const user = await User.findById(req.user.id).select('+password');
 
   if (newPassword) {
-    if (!(await user.comparePassword(currentPassword))) {
+    // Google-only accounts (no password yet) can set one without a current password.
+    if (user.password && !(await user.comparePassword(currentPassword))) {
       throw new AppError(400, 'Current password is incorrect', [
         { field: 'currentPassword', message: 'Current password is incorrect' },
       ]);

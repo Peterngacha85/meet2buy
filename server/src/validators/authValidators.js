@@ -27,15 +27,15 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-export const updateMeSchema = z
-  .object({
-    name: name.optional(),
-    phone: phone.optional(),
-    avatar: z.url('Avatar must be a URL').nullable().optional(),
-    currentPassword: z.string().optional(),
-    newPassword: password.optional(),
-  })
-  .refine((d) => !d.newPassword || d.currentPassword, {
-    message: 'Enter your current password to set a new one',
-    path: ['currentPassword'],
-  });
+export const googleSchema = z.object({
+  credential: z.string().min(20, 'Missing Google credential').max(5000),
+});
+
+// currentPassword is checked in the controller: required only if the account already has a password.
+export const updateMeSchema = z.object({
+  name: name.optional(),
+  phone: phone.optional(),
+  avatar: z.url('Avatar must be a URL').nullable().optional(),
+  currentPassword: z.string().optional(),
+  newPassword: password.optional(),
+});

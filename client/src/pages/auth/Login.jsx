@@ -6,12 +6,13 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { apiError } from '../../services/api.js';
 import { homeForRole } from '../../store/authStore.js';
 import { AuthCard, FormError } from './AuthCard.jsx';
+import { GoogleButton } from '../../features/auth/GoogleButton.jsx';
 
 // Only allow same-site relative redirects (avoid open redirects).
 const safeNext = (value) => (value && value.startsWith('/') && !value.startsWith('//') ? value : null);
 
 export function Login() {
-  const { user, status, login } = useAuth();
+  const { user, status, login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = safeNext(params.get('next'));
@@ -24,17 +25,21 @@ export function Login() {
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  async function onSubmit(e) {
-    e.preventDefault();
+  async function run(action) {
     setSubmitting(true);
     setError({ message: '', fieldErrors: {} });
     try {
-      const u = await login(form);
+      const u = await action();
       navigate(next ?? homeForRole(u.role), { replace: true });
     } catch (err) {
       setError(apiError(err));
       setSubmitting(false);
     }
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    run(() => login(form));
   }
 
   return (
@@ -50,6 +55,11 @@ export function Login() {
         </>
       }
     >
+      <GoogleButton
+        text="signin_with"
+        onCredential={(credential) => run(() => loginWithGoogle(credential))}
+        onError={(message) => setError({ message, fieldErrors: {} })}
+      />
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <FormError message={Object.keys(error.fieldErrors).length ? '' : error.message} />
         <Input

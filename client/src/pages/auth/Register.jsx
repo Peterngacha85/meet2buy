@@ -6,9 +6,10 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { apiError } from '../../services/api.js';
 import { homeForRole } from '../../store/authStore.js';
 import { AuthCard, FormError } from './AuthCard.jsx';
+import { GoogleButton } from '../../features/auth/GoogleButton.jsx';
 
 export function Register() {
-  const { user, status, register } = useAuth();
+  const { user, status, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
@@ -49,6 +50,21 @@ export function Register() {
         </>
       }
     >
+      <GoogleButton
+        text="signup_with"
+        onCredential={async (credential) => {
+          setSubmitting(true);
+          setError({ message: '', fieldErrors: {} });
+          try {
+            const u = await loginWithGoogle(credential);
+            navigate(homeForRole(u.role), { replace: true });
+          } catch (err) {
+            setError(apiError(err));
+            setSubmitting(false);
+          }
+        }}
+        onError={(message) => setError({ message, fieldErrors: {} })}
+      />
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <FormError message={Object.keys(error.fieldErrors).length ? '' : error.message} />
         <Input

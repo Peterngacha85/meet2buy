@@ -35,6 +35,9 @@ const schema = z.object({
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
   CLOUDINARY_FOLDER: z.string().default('meet2buy'),
+
+  // Google sign-in (OAuth Web client ID from Google Cloud console). Empty = button hidden, endpoint off.
+  GOOGLE_CLIENT_ID: z.string().optional(),
 }).refine((e) => Boolean(e.ADMIN_EMAIL) === Boolean(e.ADMIN_PASSWORD), {
   message: 'Set both ADMIN_EMAIL and ADMIN_PASSWORD, or neither',
   path: ['ADMIN_EMAIL'],

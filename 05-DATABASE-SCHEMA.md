@@ -8,13 +8,14 @@ All collections have `createdAt` and `updatedAt` (Mongoose timestamps). Money is
 | name | String | required |
 | email | String | unique, lowercase |
 | phone | String | format `2547XXXXXXXX` / `2541XXXXXXXX` |
-| password | String | bcrypt hash, `select: false` |
+| password | String | bcrypt hash, `select: false`; empty for Google-only accounts until they set one |
+| googleId | String | Google account `sub`, unique sparse |
 | role | String | `buyer` \| `seller` \| `admin` |
 | avatar | String | Cloudinary URL |
 | status | String | `active` \| `suspended` \| `disabled` (retired, e.g. replaced .env admin; login says "Incorrect email or password") |
 | isEnvOwner | Boolean | true for the admin managed by `ADMIN_EMAIL` in `.env`; protected from dashboard changes |
 
-Phone is required for buyers and sellers, optional for admins.
+Phone is required for sellers and for buyers who register with email + password. It is optional for admins and for Google sign-ups (they enter their M-Pesa number at checkout).
 
 ## stores
 | Field | Type | Notes |
