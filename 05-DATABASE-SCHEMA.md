@@ -20,14 +20,18 @@ Phone is required for buyers and sellers, optional for admins.
 | Field | Type | Notes |
 |-------|------|-------|
 | owner | ObjectId → users | one store per seller (MVP) |
-| name | String | required |
-| slug | String | unique, for URLs |
-| category | String | wing name |
+| name | String | required (as on the shop sign) |
+| slug | String | unique, for URLs; fixed once approved |
 | description | String | |
-| logo, banner | String | Cloudinary URLs |
+| logo, banner | String | Cloudinary URLs (must be from our Cloudinary account) |
+| brandColor | String | `#RRGGBB`, the shop sign colour |
+| departments | [{ _id, name, slug, wing }] | 1–12; `wing` = wing slug from settings. Products point at the department `_id`, so renaming is safe |
+| wings | [String] | derived from departments on save; indexed (a shop appears in every wing it has a department in) |
+| statusChangedAt | Date | |
 | openingHours | [{ day, open, close }] | display only in MVP |
 | status | String | `pending` \| `approved` \| `rejected` \| `suspended` |
 | rejectionReason | String | |
+| payout | object | `select: false`; never sent to shoppers |
 | payout.type | String | `till` \| `paybill` |
 | payout.tillNumber | String | if till |
 | payout.paybillNumber | String | if paybill |
@@ -42,6 +46,7 @@ Phone is required for buyers and sellers, optional for admins.
 | Field | Type | Notes |
 |-------|------|-------|
 | store | ObjectId → stores | indexed |
+| department | ObjectId | `_id` of one of the store's departments |
 | name | String | |
 | description | String | |
 | price | Number | KES integer |
@@ -87,9 +92,10 @@ Phone is required for buyers and sellers, optional for admins.
 |-------|------|-------|
 | store | ObjectId → stores | |
 | buyer | ObjectId → users | |
+| department | ObjectId \| null | department the request came from |
 | product | ObjectId → products \| null | |
-| message | String | |
-| status | String | `open` \| `seen` \| `closed` |
+| message | String | max 300 |
+| status | String | `open` \| `seen` \| `closed`; one open request per buyer + product (asking again updates it) |
 
 ## offers
 | Field | Type | Notes |
@@ -162,14 +168,15 @@ Offer transitions: `pending → in_checkout` (checkout started) → `paid`, or b
 | deductPayoutFeeFromSeller | Boolean | see doc 08 |
 | offerExpiryMinutes | Number | default 10 |
 | counterTimeLimitMinutes | Number | default 5 |
-| categories | [String] | wing names |
+| wings | [{ name, slug, departments: [String] }] | mall wings + suggested department names. Default: Phones & Tablets, Home Appliances |
 
 ## mpesaLogs
 Raw copy of every request sent to and callback received from Daraja: `{ type, direction, payload, relatedId }`. Never edited — used for reconciliation and support.
 
 ## Key indexes
-- `stores`: `slug` unique, `status + category`, `isLive`
-- `products`: `store + isVisible`
+- `stores`: `slug` unique, `owner` unique, `status + wings`, `isLive`
+- `products`: `store + isVisible`, `store + department`
+- `presentationRequests`: `store + status + createdAt`
 - `queueEntries`: `session + status + createdAt`
 - `payments`: `checkoutRequestId` unique, `mpesaReceipt` unique sparse
 - `payouts`: `order` unique, `conversationId`

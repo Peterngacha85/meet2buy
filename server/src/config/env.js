@@ -28,6 +28,13 @@ const schema = z.object({
   ),
   ADMIN_NAME: z.preprocess(blankToUndefined, z.string().default('Meet2buy Admin')),
   ADMIN_PHONE: z.preprocess(blankToUndefined, z.string().optional()),
+
+  // Cloudinary — image uploads (logos, banners, product photos). Browsers upload directly
+  // with a short-lived signature from POST /api/uploads/signature; the secret never leaves the server.
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+  CLOUDINARY_FOLDER: z.string().default('meet2buy'),
 }).refine((e) => Boolean(e.ADMIN_EMAIL) === Boolean(e.ADMIN_PASSWORD), {
   message: 'Set both ADMIN_EMAIL and ADMIN_PASSWORD, or neither',
   path: ['ADMIN_EMAIL'],

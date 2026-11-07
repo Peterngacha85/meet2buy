@@ -11,7 +11,9 @@
     "dev": "node --watch server.js",
     "start": "node server.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:demo": "node scripts/seedDemo.js",
+    "check:cloudinary": "node scripts/checkCloudinary.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

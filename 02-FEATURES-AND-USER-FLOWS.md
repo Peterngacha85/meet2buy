@@ -3,23 +3,33 @@
 ## 1. Seller
 
 ### 1.1 Registration & approval
-1. Seller clicks **Open a store** → fills: full name, email, phone, password.
-2. Fills store details: store name, category, short description, logo, banner.
+1. Seller clicks **Open your shop** → fills: full name, business email, phone, password.
+2. Fills shop details: shop name (as on the sign), short description, and **departments**. Departments are picked wing by wing from suggestions (e.g. Home Appliances → TVs, Cookers, Washing Machines, Fridges) or typed in.
 3. Fills payout details:
    - Payout type: **Till (Buy Goods)** or **Paybill**
    - Till number, or Paybill number + account number
    - Name registered on the Till/Paybill (for admin to verify)
-4. Store status = `pending`. Seller sees "Your store is under review".
-5. Admin approves → status `approved` → store appears in the mall.
+4. Store status = `pending`. Seller sees "Your shop is under review" and a checklist: upload logo, set up departments, add products, payout verified.
+5. While pending, the seller uploads the **logo** and picks a **sign colour** (shop profile) and can preview the shop.
+6. Admin approves (this also verifies the payout number) → status `approved` → the shop sign appears in the mall. Admin can instead **reject with a reason**; the seller fixes it and clicks **Send for review again**.
 
 > Rule: a store **cannot go live** until it is approved and has valid payout details.
 
-### 1.2 Product lineup
-- Add product: name, description, price (KES), up to 5 photos, stock quantity, optional variants (e.g. size/colour as simple text options).
+### 1.2 Shop sign & departments
+- **Shop sign:** logo on a board in the shop's own colour. Without a logo, the shop name is lettered on the board.
+- **Departments:** 1–12 per shop, each in one mall wing. A shop appears in every wing it has a department in (Samsung: Phones & Tablets **and** Home Appliances).
+- Departments can be renamed (products stay attached). A department that still has products cannot be removed.
+
+### 1.3 Product line-up
+- Add product: department, name, description, price (KES), up to 5 photos, stock quantity, optional variants (e.g. size/colour as simple text options).
 - Edit, hide/show, delete.
 - Products with stock 0 show "Out of stock" and cannot be bought.
 
-### 1.3 Going live (start a room)
+### 1.4 Demo requests
+- When the shop is closed, "Ready to buy?" saves a **demo request**: buyer name, product or department, optional question.
+- The seller sees them under **Demo requests** (New / Seen / Done) and demonstrates those products at the next live session. Buyer contact details are not shown (rule 5).
+
+### 1.5 Going live (start a room)
 1. Seller opens **Go Live** → camera/mic preview → **Open store**.
 2. Store shows **LIVE NOW** in the mall; a room session is created.
 3. While live, the seller can:
@@ -31,7 +41,7 @@
    - **End counter session** for the current buyer
 4. **Close store** ends the room; viewers see "This store has closed. Come back during opening hours."
 
-### 1.4 Orders
+### 1.6 Orders
 - List of paid orders: product, qty, amount, commission, seller payout, payout status, buyer name, phone and delivery details.
 - Seller marks order **Shipped** / **Delivered** (for record keeping).
 
@@ -40,16 +50,19 @@
 ## 2. Buyer
 
 ### 2.1 The mall tour (discovery)
-- **Mall entrance (home):** hero with tagline, "Live now" strip, category wings.
-- **Wings (categories):** e.g. Fashion, Electronics, Beauty, Home, Food… (final list from the client).
-- Each store shows as a **storefront card**: banner, logo, name, category, LIVE badge + viewer count, or opening hours if closed.
-- Filters: Live now / All, category, search by store or product name.
+- **Mall entrance (home):** the prominent **MEET2BUY** sign, one line saying what the place is ("The virtual shopping mall…"), counts (shops · wings · live now) and a **Walk in** button. **No product photos** on the entrance (doc 01 §1).
+- **Live now** strip of shop signs, only when someone is live.
+- **Mall directory:** shop signs grouped by **wing**, with wing tabs and a search box (shop or department name).
+- **Wings:** start with *Phones & Tablets* and *Home Appliances* (client examples); the admin adds more (Sprint 7 settings).
+- Each shop shows as a **shop sign**: logo on its brand colour, shop name, the departments it has in that wing, LIVE badge.
 
-### 2.2 Store page
-- Banner, logo, description, opening hours, live status.
-- Product lineup grid.
-- If live: big **Enter store** button.
-- If closed: **Request a presentation** button (saved for the seller to see; MVP shows it in the seller dashboard — no SMS in MVP).
+### 2.2 Shop page
+- Breadcrumb Mall › Wing › Shop, then the large shop sign, name, description, live/closed status, optional banner.
+- **Department tabs** (opens on the department of the wing you came from).
+- Each department: **product line-up** grid → **"Ready to buy? Click for a demonstration by a salesperson"**.
+- Tapping a product opens its details (photos, price, stock, variants) with the same **Get a live demonstration** button.
+- If live (Sprint 4): the button takes the buyer into the room and the queue, with the product attached.
+- If closed: the button saves a **demo request** for the seller (login required; no SMS in MVP).
 
 ### 2.3 Inside the room
 1. Buyer enters → sees the seller's video immediately, a "Welcome to *Store Name*" message, and other shoppers in the presence bar.
@@ -74,7 +87,8 @@
 | Screen | Features |
 |--------|----------|
 | Overview | Total sellers, pending approvals, live rooms now, sales today/month, commission today/month |
-| Sellers | List, view details & payout info, approve, reject (with reason), suspend, set seller-specific commission % |
+| Sellers | Tabs: waiting for review / open / rejected / suspended. Shop sign preview, departments, product count, owner contact, payout info. Approve (+ verify payout), reject (with reason), suspend, reinstate, preview shop, set seller-specific commission % |
+| Wings | Add / rename wings and their suggested departments (settings, Sprint 7) |
 | Commission settings | Default commission %, toggle whether B2B transaction fees are deducted from seller payout (see doc 08) |
 | Transactions | All orders: buyer, seller, amount, commission, payout amount, M-Pesa receipt, status; filter by date/store/status |
 | Payouts | All payouts with status; **Retry** failed payouts; view Daraja result message |

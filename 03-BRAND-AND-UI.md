@@ -73,7 +73,7 @@ Sizes: H1 40/48 desktop (28 mobile), H2 28, H3 20, body 16, small 14, labels 12 
 | Place | Version |
 |-------|---------|
 | Navbar | Horizontal logo without tagline, height ~36px |
-| Mall entrance hero | Full logo with tagline |
+| Mall entrance | White full logo with tagline, large, as the sign over the entrance |
 | Footer | White version on navy |
 | Browser tab / PWA | Icon only |
 | Loading screen | Icon with gentle pulse |
@@ -97,9 +97,9 @@ The orange arrow under the tagline can be reused as a subtle decorative element 
 ### Public / Buyer
 | Screen | Key elements |
 |--------|-------------|
-| **Mall entrance (Home)** | Navy navbar or white navbar with logo, hero with headline + tagline, "Live now" horizontal strip, category wings, "Open your store free" CTA (orange) |
-| **Wing (category)** | Storefront cards grid, Live/All toggle, search |
-| **Store page** | Banner, logo, about, hours, LIVE status, product grid, Enter store / Request presentation |
+| **Mall entrance (Home)** | Navy entrance band with the white full logo as a lit **MEET2BUY sign**, "Welcome to", one line ("The virtual shopping mall…"), counts (shops · wings · live now), **Walk in** button, orange canopy line. **No product photos or decorative graphics** (client rule, doc 01 §1). Below: "Live now" signs (only if any), **mall directory** of shop signs grouped by wing with wing tabs + search, small "Own a business? Open your shop" band |
+| **Shop sign (component)** | Board in the shop's `brandColor` with its logo on a white plate (or the name lettered in white caps if no logo), LIVE pill, then name + departments in that wing |
+| **Shop page** | Breadcrumb, large shop sign, name, description, Live/Closed, banner (optional), sticky **department tabs**, per department: product line-up grid + navy **"Ready to buy?"** panel with orange **Get a demonstration** button; product details dialog with the same button |
 | **Room** | See layout below |
 | **Checkout sheet** | Product summary, qty, M-Pesa number, delivery details, Pay button (orange, navy text), waiting-for-PIN state, success/failure state |
 | **My orders** | Order cards with status |

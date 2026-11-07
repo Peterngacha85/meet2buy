@@ -4,11 +4,17 @@ import { SellerLayout } from './layouts/SellerLayout.jsx';
 import { AdminLayout } from './layouts/AdminLayout.jsx';
 import { RequireRole } from './RequireRole.jsx';
 import { MallHome } from '../pages/mall/MallHome.jsx';
+import { ShopPage } from '../pages/mall/ShopPage.jsx';
 import { Login } from '../pages/auth/Login.jsx';
 import { Register } from '../pages/auth/Register.jsx';
 import { OpenStore } from '../pages/auth/OpenStore.jsx';
 import { SellerOverview } from '../pages/seller/Overview.jsx';
+import { StoreProfile } from '../pages/seller/StoreProfile.jsx';
+import { SellerProducts } from '../pages/seller/Products.jsx';
+import { SellerPayouts } from '../pages/seller/Payouts.jsx';
+import { DemoRequests } from '../pages/seller/DemoRequests.jsx';
 import { AdminOverview } from '../pages/admin/Overview.jsx';
+import { AdminSellers } from '../pages/admin/Sellers.jsx';
 import { ComingSoon } from '../pages/ComingSoon.jsx';
 import { NotFound } from '../pages/NotFound.jsx';
 
@@ -19,6 +25,7 @@ export const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { path: '/', element: <MallHome /> },
+      { path: '/shop/:slug', element: <ShopPage /> },
       { path: '/login', element: <Login /> },
       { path: '/register', element: <Register /> },
       { path: '/open-store', element: <OpenStore /> },
@@ -37,10 +44,11 @@ export const router = createBrowserRouter([
         element: <SellerLayout />,
         children: [
           { index: true, element: <SellerOverview /> },
-          { path: 'store', ...soon('Store profile', 2) },
-          { path: 'products', ...soon('Products', 2) },
+          { path: 'store', element: <StoreProfile /> },
+          { path: 'products', element: <SellerProducts /> },
+          { path: 'requests', element: <DemoRequests /> },
           { path: 'orders', ...soon('Orders', 6) },
-          { path: 'payouts', ...soon('Payout settings', 2) },
+          { path: 'payouts', element: <SellerPayouts /> },
           { path: 'live', ...soon('Live control', 4) },
         ],
       },
@@ -54,7 +62,7 @@ export const router = createBrowserRouter([
         element: <AdminLayout />,
         children: [
           { index: true, element: <AdminOverview /> },
-          { path: 'sellers', ...soon('Sellers', 2) },
+          { path: 'sellers', element: <AdminSellers /> },
           { path: 'transactions', ...soon('Transactions', 7) },
           { path: 'payouts', ...soon('Payouts', 7) },
           { path: 'live-rooms', ...soon('Live rooms', 7) },

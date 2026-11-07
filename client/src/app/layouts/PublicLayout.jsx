@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router';
+﻿import { Link, NavLink, Outlet, useNavigate } from 'react-router';
 import { LogOut, Store, User } from 'lucide-react';
 import { FullLogo, Logo } from '../../components/Logo.jsx';
 import { Button } from '../../components/ui/Button.jsx';
@@ -71,7 +71,7 @@ export function PublicLayout() {
             </NavLink>
             {!user && (
               <Button to="/open-store" variant="accent" size="sm" className="max-md:hidden">
-                Open your store free
+                Open your shop
               </Button>
             )}
             <AccountMenu />

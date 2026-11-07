@@ -12,6 +12,9 @@ export default defineConfig({
       JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
       BCRYPT_ROUNDS: '4',
       CLIENT_URL: 'http://localhost:5173',
+      CLOUDINARY_CLOUD_NAME: 'testcloud',
+      CLOUDINARY_API_KEY: '123456789012345',
+      CLOUDINARY_API_SECRET: 'test-cloudinary-secret',
     },
   },
 });

@@ -6,6 +6,32 @@ A virtual shopping mall. Instead of scrolling a catalogue, a buyer walks through
 
 **The customer should feel like they have walked into a physical store.**
 
+### The mall concept (client brief)
+
+Think of a physical mall like TRM:
+
+| Physical mall | Meet2buy |
+|---------------|----------|
+| The building with a big mall name over the entrance | The home page: a prominent **MEET2BUY** sign for the whole marketplace |
+| Shops inside, each with its own sign | Each registered business has a **shop sign** with its own name, logo and colours |
+| Wings / floors | **Wings**, e.g. *Phones & Tablets*, *Home Appliances* |
+| Departments inside a big shop | **Departments** inside a shop, e.g. Hisense → TVs, Cookers, Washing machines, Fridges |
+| Walking up to a salesperson | **"Ready to buy? Click for a demonstration by a salesperson"** → live room |
+
+**Most important design principle: Meet2buy is the mall. The registered businesses are the shops.**
+
+The entrance must not be crowded with product pictures or unnecessary graphics. It communicates three things only:
+1. This is Meet2buy.
+2. This is a shopping destination.
+3. Inside are different businesses (shown by their logos) waiting to serve you.
+
+Shopping path: **Mall entrance → wing → shop → department → product line-up → "Ready to buy?" → demonstration by a salesperson → pay.**
+
+Examples from the client:
+- **Samsung** sells both, so its shop has two departments, *Home Appliances* and *Phones & Tablets*, and its sign appears in **both** wings. Entering from a wing opens that wing's department.
+- **Tecno, Infinix, Oppo, vivo, Honor, realme:** Phones & Tablets wing only.
+- **Hisense, LG, Hotpoint, TCL, Synix, Vision Plus:** Home Appliances wing, with departments TVs, Cookers, Washing machines and Fridges, each with its own line-up and demo button.
+
 ## 2. Business model
 
 - Sellers **register for free** — no subscription fee.
@@ -34,7 +60,7 @@ Guests (not logged in) can walk the mall and watch rooms. Logging in is required
 
 **Seller**
 - Register (free) and wait for admin approval
-- Store profile: name, logo, banner, category, description, opening hours
+- Shop profile: name, logo (shop sign), sign colour, banner, description, departments (each in a wing), opening hours
 - Payout details: Till number or Paybill + account number
 - Product lineup: add / edit / hide products with photos, price, stock
 - Start a room (go live) and end it
@@ -46,9 +72,9 @@ Guests (not logged in) can walk the mall and watch rooms. Logging in is required
 
 **Buyer**
 - Register / log in
-- Mall tour: browse stores by category "wings", see who is LIVE NOW
-- Store page: profile and product lineup
-- Request a presentation of a product (joins the queue)
+- Mall tour: browse shop signs by wing, see who is LIVE NOW
+- Shop page: departments, each with its product line-up
+- "Ready to buy?" → demonstration by a salesperson (joins the queue if live, or leaves a demo request if closed)
 - Enter a room: watch the seller, see other shoppers, chat
 - Step up to the counter (audio/video with the seller) when called
 - Buy at listed price or accept a seller's offer

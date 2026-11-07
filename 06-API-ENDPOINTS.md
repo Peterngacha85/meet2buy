@@ -2,13 +2,13 @@
 
 Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 seller · 🛡 admin
 
-> **Route order:** in each router, register fixed paths (`/mine`, `/live`, `/categories`, `/checkout`, `/store`) **before** parameter paths (`/:slug`, `/:id`). Otherwise Express matches `/stores/mine` as a store with slug `mine`.
+> **Route order:** in each router, register fixed paths (`/mine`, `/live`, `/wings`, `/checkout`, `/store`) **before** parameter paths (`/:slug`, `/:id`). Otherwise Express matches `/stores/mine` as a store with slug `mine`.
 
 ## Auth — `/api/auth`
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
 | POST | `/register` | 🔓 | Buyer registration |
-| POST | `/register-seller` | 🔓 | Seller registration + store + payout details (store = pending) |
+| POST | `/register-seller` | 🔓 | Body `{ account: {name,email,phone,password}, store: {name, description, departments:[{name,wing}]}, payout }` → seller + pending shop. Field errors use paths like `account.email`, `payout.tillNumber` |
 | POST | `/login` | 🔓 | Login, sets cookie |
 | POST | `/logout` | 👤 | Clears cookie |
 | GET | `/me` | 👤 | Current user (+ store if seller) |
@@ -17,14 +17,15 @@ Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 se
 ## Mall & stores — `/api/stores`
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
-| GET | `/` | 🔓 | Approved stores; query: `category`, `live=true`, `q`, `page` |
-| GET | `/live` | 🔓 | Stores live now with viewer counts |
-| GET | `/categories` | 🔓 | Wing list |
-| GET | `/:slug` | 🔓 | Store page + visible products |
-| GET | `/mine` | 🛍 | Seller's own store |
-| PATCH | `/mine` | 🛍 | Update store profile / hours |
+| GET | `/` | 🔓 | Approved shops (public fields only, never payout); query: `wing`, `live=true`, `q`, `page` |
+| GET | `/live` | 🔓 | Stores live now with viewer counts (Sprint 4) |
+| GET | `/wings` | 🔓 | Wings with suggested departments, shop and live counts, plus mall totals |
+| GET | `/:slug` | 🔓 | Shop page + visible products. The owner and admins can preview a shop that is not approved yet (`preview: "pending"`) |
+| GET | `/mine` | 🛍 | Seller's own shop (with payout) |
+| PATCH | `/mine` | 🛍 | Update name, description, logo, banner, brandColor, departments (keep `id` to rename; 409 if removing a department that has products) |
 | PATCH | `/mine/payout` | 🛍 | Update payout details (sets `payout.verified=false`) |
-| POST | `/:storeId/presentation-requests` | 👤 | Request a presentation when closed |
+| POST | `/mine/resubmit` | 🛍 | Rejected → pending |
+| POST | `/:storeId/presentation-requests` | 👤 | Demo request when closed: `{ product?, department?, message? }` |
 | GET | `/mine/presentation-requests` | 🛍 | List requests |
 | PATCH | `/mine/presentation-requests/:id` | 🛍 | Mark seen/closed |
 
@@ -33,10 +34,14 @@ Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 se
 |--------|------|--------|-------------|
 | GET | `/:id` | 🔓 | Product details |
 | GET | `/mine` | 🛍 | Seller's products |
-| POST | `/` | 🛍 | Create product |
+| POST | `/` | 🛍 | Create product (`department` must be one of the seller's departments) |
 | PATCH | `/:id` | 🛍 | Update (own only) |
 | DELETE | `/:id` | 🛍 | Delete (own only) |
-| POST | `/uploads/image` | 🛍 | Upload image to Cloudinary (or return signed upload params) |
+
+## Uploads — `/api/uploads`
+| Method | Path | Access | Description |
+|--------|------|--------|-------------|
+| POST | `/signature` | 🛍🛡 | `{ kind: logo\|banner\|product\|avatar }` → `{ uploadUrl, apiKey, params, signature }`. The browser posts the file **directly to Cloudinary**; the API secret never leaves the server. Saved image URLs must start with `https://res.cloudinary.com/<our cloud>/image/upload/` |
 
 ## Rooms — `/api/rooms`
 | Method | Path | Access | Description |
@@ -72,13 +77,14 @@ Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 se
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
 | GET | `/stats` | 🛡 | Overview numbers |
-| GET | `/sellers` | 🛡 | Filter by status |
-| PATCH | `/sellers/:storeId/approve` | 🛡 | Approve + verify payout |
-| PATCH | `/sellers/:storeId/reject` | 🛡 | Reject with reason |
-| PATCH | `/sellers/:storeId/suspend` | 🛡 | Suspend (closes live room) |
+| GET | `/sellers` | 🛡 | Filter `status`; includes owner contact, payout, product count, and counts per status |
+| PATCH | `/sellers/:storeId/approve` | 🛡 | Approve + verify payout (also re-verifies changed payout details of an open shop) |
+| PATCH | `/sellers/:storeId/reject` | 🛡 | Reject pending shop with `{ reason }` |
+| PATCH | `/sellers/:storeId/suspend` | 🛡 | Suspend open shop, `{ reason? }` (closes live room) |
+| PATCH | `/sellers/:storeId/reinstate` | 🛡 | Suspended → approved |
 | PATCH | `/sellers/:storeId/commission` | 🛡 | Set override % or `null` |
 | GET | `/settings` | 🛡 | Get settings |
-| PATCH | `/settings` | 🛡 | Default commission, fee toggle, categories, timers |
+| PATCH | `/settings` | 🛡 | Default commission, fee toggle, wings (+ suggested departments), timers |
 | GET | `/transactions` | 🛡 | Orders with payment & payout info; filters + date range |
 | GET | `/payouts` | 🛡 | Payouts; filter by status |
 | POST | `/payouts/:id/retry` | 🛡 | Retry a failed payout |

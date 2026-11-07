@@ -5,8 +5,8 @@
 | Sprint | Weeks | Deliverables |
 |--------|-------|-------------|
 | **1. Foundation** | 1 | Repo, MVC server, React + Tailwind with brand tokens, MongoDB, auth (buyer/seller/admin), deployment pipeline to Render, start Safaricom application (client) |
-| **2. Sellers & products** | 2 | Seller registration wizard, store profile, payout details, product CRUD with Cloudinary, admin seller approval |
-| **3. The mall** | 3 | Mall entrance, wings, storefront cards, store page, search, "Live now" strip, presentation requests |
+| **2. Sellers & products** ✅ | 2 | Seller registration wizard (account → shop + departments → payout), shop profile (logo, sign colour, banner, departments), payout details, product CRUD per department with Cloudinary direct uploads, admin seller approval |
+| **3. The mall** | 3 | ✅ done early with Sprint 2: mall entrance (Meet2buy sign), wing directory of shop signs, search, shop page with departments + line-up + "Ready to buy?", demo (presentation) requests. Left: "Live now" strip with viewer counts (needs Sprint 4), opening hours |
 | **4. The room (core)** | 4–5 | LiveKit integration, go live / end, buyer viewing, chat, presence, product shelf, pin product, room UI desktop + mobile |
 | **5. Queue & counter** | 5 | Queue join/leave/position, call next, counter publish permissions, auto-pin |
 | **6. Sales & payments** | 6 | Offers, checkout sheet, STK push + callback, commission, B2B payout + result handling, orders for buyer & seller |
@@ -30,7 +30,8 @@ Running costs (hosting, video, database, Cloudinary, Safaricom charges, domain) 
 - [ ] Final logo files from the designer (SVG, icon-only, white version) and domain purchase
 - [ ] Safaricom Paybill + Daraja go-live (STK Push + B2B) — **start in week 1**
 - [ ] Accounts: LiveKit Cloud, MongoDB Atlas, Render, Cloudinary (add Fastweb as team member)
-- [ ] Category (wing) list for the mall
+- [~] Wing list for the mall: *Phones & Tablets* and *Home Appliances* confirmed from the client's examples; more wings to come
+- [ ] Logos from the pilot businesses (each business uploads its own from the seller dashboard)
 - [ ] Default commission %
 - [ ] Terms & conditions and privacy policy text (or approval of a draft)
 - [ ] 3–5 pilot sellers for testing before public launch
@@ -42,7 +43,9 @@ Running costs (hosting, video, database, Cloudinary, Safaricom charges, domain) 
 3. **Seller verification:** what documents should a seller provide (ID, KRA PIN, business registration) before approval?
 4. **Minimum order amount?** (very small orders may be eaten up by fees)
 5. **Refunds/returns policy** wording — confirmed that it's between buyer and seller in the MVP?
-6. **Mall categories (wings)** — final list?
+6. **Mall wings** — Phones & Tablets and Home Appliances so far. Which other wings (fashion, beauty, food…)?
+10. **One salesperson per shop, or one per department?** The MVP has one live room per shop (the seller's account), so "click for a demonstration" in any department goes to that shop's room and queue. Separate salespeople per department, each live at the same time, is a future phase (quoted separately).
+11. **Brand shops:** will the shops be the brands themselves (e.g. Samsung Kenya) or authorised dealers? Brand names and logos should only appear with the business's permission. The demo shops in `npm run seed:demo` are for presentations only and must be removed before launch.
 7. ~~Can guests watch rooms without an account?~~ **Decided: yes** — guests can watch; login is required to chat, queue or buy (doc 01 §3).
 8. **Expected launch traffic:** how many sellers live at the same time, and viewers per room? (affects LiveKit plan)
 9. **Domain name** — e.g. `meet2buy.co.ke` / `meet2buy.com`?
@@ -61,3 +64,4 @@ Running costs (hosting, video, database, Cloudinary, Safaricom charges, domain) 
 | Buyer protection / escrow | Hold funds until delivery is confirmed |
 | Analytics | Foot traffic, conversion per session, top products |
 | Visual mall map | Floors and wings as an illustrated, walkable map |
+| Department salespeople | Several staff accounts per shop, each running the live room for their own department at the same time |

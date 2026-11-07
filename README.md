@@ -44,6 +44,10 @@ npm run dev
 
 **Admin account:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (12+ characters) in `server/.env`. On every start the server creates that account, or makes the existing account an admin. To change the admin password, edit `ADMIN_PASSWORD` and restart.
 
+**Image uploads:** set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` in `server/.env`. Check them with `npm run check:cloudinary` (uploads and deletes a 1-pixel test image).
+
+**Demo shops:** `npm run seed:demo` adds the client's example shops (Samsung, Tecno, Hisense, LG…) with placeholder line-ups so the mall can be shown before real sellers join. `npm run seed:demo -- --remove` deletes them. It refuses to run with `NODE_ENV=production`. Remove the demo shops before launch.
+
 Tests: `cd server; npm test` (uses an in-memory MongoDB — no setup needed).
 
 ### Deploying
