@@ -70,7 +70,7 @@ export function PublicLayout() {
               The mall
             </NavLink>
             {!user && (
-              <Button to="/open-store" variant="accent" size="sm" className="hidden md:inline-flex">
+              <Button to="/open-store" variant="accent" size="sm" className="max-md:hidden">
                 Open your store free
               </Button>
             )}

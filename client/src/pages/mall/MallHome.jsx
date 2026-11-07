@@ -3,6 +3,7 @@ import { FullLogo } from '../../components/Logo.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { StatusPill } from '../../components/ui/StatusPill.jsx';
+import { HeroRoomPreview } from '../../features/mall/HeroRoomPreview.jsx';
 
 // Placeholder wings until the client confirms the list (doc 09, open question 6).
 const wings = [
@@ -19,9 +20,15 @@ export function MallHome() {
     <>
       {/* Mall entrance */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-6xl px-4 pb-14 pt-12 sm:pb-20 sm:pt-20">
+        {/* soft backdrop behind the room preview */}
+        <div
+          className="pointer-events-none absolute -right-40 top-10 hidden size-[640px] rounded-full bg-navy-soft/70 blur-3xl lg:block"
+          aria-hidden
+        />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-14 pt-10 sm:pb-20 sm:pt-16 lg:grid-cols-[1.15fr_1fr] lg:gap-14">
+        <div>
           <FullLogo className="w-56 sm:w-72" />
-          <h1 className="mt-8 max-w-3xl text-[28px] font-extrabold leading-tight sm:text-[40px] sm:leading-[48px]">
+          <h1 className="mt-8 max-w-3xl text-[28px] font-extrabold leading-tight text-balance sm:text-[40px] sm:leading-[48px] lg:text-[38px] lg:leading-[46px] xl:text-[40px] xl:leading-[48px]">
             Don&rsquo;t search for what you want,{' '}
             <span className="relative inline-block">
               meet the person selling it.
@@ -47,6 +54,8 @@ export function MallHome() {
               Open your store free
             </Button>
           </div>
+        </div>
+        <HeroRoomPreview />
         </div>
       </section>
 
