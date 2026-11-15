@@ -18,7 +18,7 @@ export function DashboardLayout({ title, items, action }) {
   const totalBadges = items.reduce((n, i) => n + (i.badgeKey ? badges[i.badgeKey] ?? 0 : 0), 0);
 
   const nav = (
-    <nav className="flex flex-1 flex-col gap-1 px-3">
+    <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3">
       {items.map(({ to, label, icon: Icon, end, badgeKey }) => (
         <NavLink
           key={to}
@@ -53,7 +53,7 @@ export function DashboardLayout({ title, items, action }) {
     <div className="flex min-h-dvh bg-bg">
       {/* Sidebar: fixed on desktop, drawer on mobile */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-navy pb-4 transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-64 shrink-0 flex-col bg-navy pb-4 transition-transform lg:sticky lg:top-0 lg:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -91,7 +91,7 @@ export function DashboardLayout({ title, items, action }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center gap-3 border-b border-line bg-white px-4 lg:hidden">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-white/95 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setOpen(true)} aria-label="Open menu" className="relative text-navy">
             <Menu className="size-6" />
             {totalBadges > 0 && <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-orange ring-2 ring-white" aria-label="New notifications" />}
