@@ -23,10 +23,12 @@ export function CloseRoomDialog({ room, onClose, onClosed }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Reset only when a different room is opened (the Watch page re-renders every second for its timer).
+  const roomId = room?.id ?? null;
   useEffect(() => {
     setReason('');
     setError('');
-  }, [room]);
+  }, [roomId]);
 
   async function submit(e) {
     e.preventDefault();
