@@ -17,15 +17,32 @@ const isSeller = (p) => {
   }
 };
 
-/** The seller's camera and microphone tracks (or null) among the remote participants. */
-function findSellerTracks(room) {
+const tracksOf = (p) => ({
+  video: p?.getTrackPublication(Track.Source.Camera)?.track ?? null,
+  audio: p?.getTrackPublication(Track.Source.Microphone)?.track ?? null,
+});
+
+/**
+ * Remote tracks: the seller's, and the buyer at the counter (any other participant publishing).
+ * The seller's token carries role "seller" in its metadata.
+ */
+function findRemoteTracks(room) {
   const people = [...room.remoteParticipants.values()];
-  const seller = people.find(isSeller) ?? people.find((p) => p.getTrackPublication(Track.Source.Camera));
-  if (!seller) return { video: null, audio: null, present: false };
+  const seller = people.find(isSeller);
+  const counter = people.find(
+    (p) => !isSeller(p) && (p.getTrackPublication(Track.Source.Microphone) || p.getTrackPublication(Track.Source.Camera)),
+  );
   return {
-    video: seller.getTrackPublication(Track.Source.Camera)?.track ?? null,
-    audio: seller.getTrackPublication(Track.Source.Microphone)?.track ?? null,
-    present: true,
+    seller: { ...tracksOf(seller), present: Boolean(seller) },
+    counter: counter ? { ...tracksOf(counter), name: counter.name || 'Shopper' } : null,
+  };
+}
+
+function findLocal(room) {
+  const lp = room.localParticipant;
+  return {
+    mic: Boolean(lp.getTrackPublication(Track.Source.Microphone)?.track && !lp.getTrackPublication(Track.Source.Microphone).isMuted),
+    camera: lp.getTrackPublication(Track.Source.Camera)?.track ?? null,
   };
 }
 
@@ -53,7 +70,8 @@ export async function startCameraAndMic() {
  */
 export function useLiveKit({ url, token, publish = null }) {
   const [connection, setConnection] = useState('idle'); // idle | connecting | connected | reconnecting | disconnected
-  const [seller, setSeller] = useState({ video: null, audio: null, present: false });
+  const [remote, setRemote] = useState({ seller: { video: null, audio: null, present: false }, counter: null });
+  const [local, setLocal] = useState({ mic: false, camera: null });
   const [canPlayAudio, setCanPlayAudio] = useState(true);
   const [error, setError] = useState('');
   const roomRef = useRef(null);
@@ -66,8 +84,14 @@ export function useLiveKit({ url, token, publish = null }) {
     setError('');
     setConnection('connecting');
 
-    const refresh = () => active && setSeller(findSellerTracks(room));
+    const refresh = () => {
+      if (!active) return;
+      setRemote(findRemoteTracks(room));
+      setLocal(findLocal(room));
+    };
     room
+      .on(RoomEvent.LocalTrackPublished, refresh)
+      .on(RoomEvent.LocalTrackUnpublished, refresh)
       .on(RoomEvent.TrackSubscribed, refresh)
       .on(RoomEvent.TrackUnsubscribed, refresh)
       .on(RoomEvent.TrackMuted, refresh)
@@ -122,5 +146,37 @@ export function useLiveKit({ url, token, publish = null }) {
     setCanPlayAudio(roomRef.current?.canPlaybackAudio ?? true);
   }, []);
 
-  return { connection, seller, canPlayAudio, startAudio, error };
+  /** Buyer at the counter: turn the mic / camera on or off. Throws if not allowed or the browser blocks it. */
+  const setMic = useCallback(async (enabled) => {
+    const room = roomRef.current;
+    if (!room) throw new Error('Not connected');
+    await room.localParticipant.setMicrophoneEnabled(enabled, { echoCancellation: true, noiseSuppression: true });
+    setLocal(findLocal(room));
+  }, []);
+  const setCamera = useCallback(async (enabled) => {
+    const room = roomRef.current;
+    if (!room) throw new Error('Not connected');
+    await room.localParticipant.setCameraEnabled(enabled, { resolution: VideoPresets.h360.resolution, facingMode: 'user' });
+    setLocal(findLocal(room));
+  }, []);
+  /** Stop publishing everything (the counter turn ended). */
+  const stopPublishing = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    await Promise.allSettled([room.localParticipant.setMicrophoneEnabled(false), room.localParticipant.setCameraEnabled(false)]);
+    setLocal(findLocal(room));
+  }, []);
+
+  return {
+    connection,
+    seller: remote.seller,
+    counter: remote.counter,
+    local,
+    canPlayAudio,
+    startAudio,
+    setMic,
+    setCamera,
+    stopPublishing,
+    error,
+  };
 }

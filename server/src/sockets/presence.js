@@ -70,6 +70,12 @@ export function sellerSocketCount(sessionId) {
   return r ? [...r.sockets.values()].filter((p) => p.isSeller).length : 0;
 }
 
+/** Is this logged-in user still in the room on any tab? */
+export function userPresent(sessionId, userId) {
+  const r = rooms.get(sessionId);
+  return r ? [...r.sockets.values()].some((p) => p.userId === userId) : false;
+}
+
 export function presenceOf(sessionId) {
   const r = rooms.get(sessionId);
   return r ? summarise(r) : { viewerCount: 0, shoppers: [], sellerHere: false };

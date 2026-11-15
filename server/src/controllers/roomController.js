@@ -10,6 +10,7 @@ import {
   sessionView,
   startSession,
 } from '../services/roomService.js';
+import { counterView, myQueueState, queueList } from '../services/queueService.js';
 import { presenceOf } from '../sockets/presence.js';
 import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
@@ -70,8 +71,19 @@ export async function token(req, res) {
   }
   const identity = req.user ? req.user.id : `guest_${crypto.randomBytes(6).toString('hex')}`;
   const name = req.user?.name ?? 'Guest';
-  const livekit = await createRoomToken({ room: session.livekitRoom, identity, name, role: 'viewer' });
-  ok(res, { livekit, role: 'viewer' });
+  // The buyer at the counter may publish their mic/camera (used if they reconnect while at the counter).
+  const role = req.user && session.counterBuyer?.equals(req.user._id) ? 'counter' : 'viewer';
+  const livekit = await createRoomToken({ room: session.livekitRoom, identity, name, role });
+  ok(res, { livekit, role });
+}
+
+// GET /api/rooms/:sessionId/queue — the seller sees the full list; a buyer sees their own place
+export async function queue(req, res) {
+  const session = await loadLiveSession(req.params.sessionId);
+  const store = await Store.findById(session.store).select('owner');
+  const counter = await counterView(session._id);
+  if (store.owner.equals(req.user._id)) return ok(res, { entries: await queueList(session._id), counter });
+  ok(res, { mine: await myQueueState(session._id, req.user.id), counter });
 }
 
 // GET /api/rooms/:sessionId/messages — last 50 chat messages

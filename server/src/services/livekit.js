@@ -1,4 +1,4 @@
-import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
@@ -34,6 +34,8 @@ export async function createRoomToken({ room, identity, name, role }) {
     roomJoin: true,
     canSubscribe: true,
     canPublish,
+    // A buyer at the counter may use their mic and camera only (no screen sharing).
+    ...(role === 'counter' ? { canPublishSources: ['camera', 'microphone'] } : {}),
     canPublishData: role === 'seller',
     // The seller is the room "admin" in LiveKit terms only for their own room.
     roomAdmin: role === 'seller',
@@ -49,6 +51,28 @@ function roomService() {
     client = new RoomServiceClient(host, env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET);
   }
   return client;
+}
+
+/**
+ * Give a connected buyer the counter (mic + camera) or take it back (doc 07 §2). LiveKit stops their
+ * tracks when publishing is revoked. Returns false if they are not connected to the video (never throws).
+ */
+export async function setCounterPublish(room, identity, allowed) {
+  if (!isLiveKitConfigured()) return false;
+  try {
+    await roomService().updateParticipant(room, identity, {
+      permission: {
+        canSubscribe: true,
+        canPublish: allowed,
+        canPublishData: false,
+        canPublishSources: allowed ? [TrackSource.CAMERA, TrackSource.MICROPHONE] : [],
+      },
+    });
+    return true;
+  } catch (err) {
+    if (err?.status !== 404 && err?.code !== 'not_found') logger.warn(`LiveKit updateParticipant ${identity} failed: ${err.message}`);
+    return false;
+  }
 }
 
 /** Disconnect everyone from a LiveKit room. Never throws: ending our session must not depend on LiveKit. */

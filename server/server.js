@@ -7,6 +7,7 @@ import { ensureAdminFromEnv } from './src/services/adminBootstrap.js';
 import { logger } from './src/utils/logger.js';
 import { User } from './src/models/User.js';
 import { RoomSession } from './src/models/RoomSession.js';
+import { QueueEntry } from './src/models/QueueEntry.js';
 import { isLiveKitConfigured } from './src/services/livekit.js';
 import { resumeLiveSessions } from './src/services/roomService.js';
 
@@ -15,6 +16,7 @@ async function start() {
   // Bring indexes in line with the models (e.g. users.email became sparse for guest accounts).
   await User.syncIndexes();
   await RoomSession.syncIndexes();
+  await QueueEntry.syncIndexes();
   await ensureAdminFromEnv();
   if (!isLiveKitConfigured()) logger.warn('LiveKit keys not set: sellers cannot go live');
 

@@ -17,6 +17,7 @@ router.post('/end', ...seller, rooms.end);
 router.get('/mine', ...seller, rooms.mine);
 router.post('/:sessionId/token', sessionParam, optionalAuth, rooms.token);
 router.get('/:sessionId/messages', sessionParam, rooms.messages);
+router.get('/:sessionId/queue', sessionParam, protect, rooms.queue);
 router.get('/:storeSlug', optionalAuth, rooms.getRoom);
 
 export default router;

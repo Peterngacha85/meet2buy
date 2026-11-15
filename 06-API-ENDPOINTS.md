@@ -54,7 +54,7 @@ Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 se
 | GET | `/:storeSlug` | 🔓 | Current session info (pinned product, status) |
 | POST | `/:sessionId/token` | 🔓/👤 | LiveKit token: guests & buyers get subscribe-only |
 | GET | `/:sessionId/messages` | 🔓 | Last 50 chat messages |
-| GET | `/:sessionId/queue` | 👤 | Queue (buyer sees own position; seller sees full list) |
+| GET | `/:sessionId/queue` | 👤 | Queue (buyer sees own position; seller sees full list) + who is at the counter |
 
 *(Realtime actions — chat, pin, queue, offers — happen over Socket.io; see doc 07.)*
 

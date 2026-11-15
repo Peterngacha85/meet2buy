@@ -8,6 +8,7 @@ import { io as connect } from 'socket.io-client';
 vi.mock('../src/services/livekit.js', async (importOriginal) => ({
   ...(await importOriginal()),
   closeLiveKitRoom: vi.fn(async () => {}),
+  setCounterPublish: vi.fn(async () => true),
 }));
 
 const { createApp } = await import('../src/app.js');
@@ -16,7 +17,8 @@ const { User } = await import('../src/models/User.js');
 const { Store } = await import('../src/models/Store.js');
 const { RoomSession } = await import('../src/models/RoomSession.js');
 const { ChatMessage } = await import('../src/models/ChatMessage.js');
-const { closeLiveKitRoom } = await import('../src/services/livekit.js');
+const { QueueEntry } = await import('../src/models/QueueEntry.js');
+const { closeLiveKitRoom, setCounterPublish } = await import('../src/services/livekit.js');
 const { maskContacts } = await import('../src/utils/maskContacts.js');
 
 const app = createApp();
@@ -229,6 +231,112 @@ describe('Socket.io room', () => {
     back.disconnect();
     await sleep(1500);
     expect((await RoomSession.findById(session.id)).endReason).toBe('seller_gone');
+  });
+});
+
+describe('Queue & counter', () => {
+  async function liveRoomWithBuyers() {
+    const { seller, product } = await openShop();
+    const { session } = (await request(app).post('/api/rooms/start').set('Cookie', seller)).body.data;
+    const sellerSocket = await socketAs(seller);
+    await sellerSocket.emitWithAck('room:join', { sessionId: session.id });
+    const amina = await socketAs(await loginAs('buyer', 'amina@example.com', 'Amina Wanjiru'));
+    await amina.emitWithAck('room:join', { sessionId: session.id });
+    await User.create({ name: 'Brian Otieno', email: 'brian@example.com', phone: '254733000333', password: 'supersecret1', role: 'buyer' });
+    const brianCookie = cookieFrom(await request(app).post('/api/auth/login').send({ email: 'brian@example.com', password: 'supersecret1' }));
+    const brian = await socketAs(brianCookie);
+    await brian.emitWithAck('room:join', { sessionId: session.id });
+    return { seller, session, product, sellerSocket, amina, brian, brianCookie };
+  }
+
+  it('lines buyers up, calls them to the counter one by one and auto-pins what they asked to see', async () => {
+    const { session, product, sellerSocket, amina, brian, brianCookie } = await liveRoomWithBuyers();
+    const sid = session.id;
+
+    // Amina asks to see the TV with a note; contacts in notes are masked too.
+    const joined = await amina.emitWithAck('queue:join', { sessionId: sid, productId: product.id, note: 'Does it come with a wall mount? 0712345678' });
+    expect(joined).toMatchObject({ ok: true, mine: { status: 'waiting', position: 1, total: 1 } });
+    // Joining twice keeps one place.
+    expect((await amina.emitWithAck('queue:join', { sessionId: sid })).mine.position).toBe(1);
+
+    const brianPos = nextEvent(brian, 'queue:position');
+    const sellerList = nextEvent(sellerSocket, 'queue:updated');
+    await brian.emitWithAck('queue:join', { sessionId: sid });
+    expect(await brianPos).toMatchObject({ status: 'waiting', position: 2, total: 2 });
+    const list = await sellerList;
+    expect(list.entries.map((e) => e.buyer.name)).toEqual(['Amina Wanjiru', 'Brian Otieno']);
+    expect(list.entries[0]).toMatchObject({ note: 'Does it come with a wall mount? •••', product: { name: 'Hisense 55" 4K TV' } });
+
+    // Buyers can't run the counter; the seller can't queue.
+    expect(await amina.emitWithAck('queue:callNext', { sessionId: sid })).toMatchObject({ ok: false });
+    expect(await sellerSocket.emitWithAck('queue:join', { sessionId: sid })).toMatchObject({ ok: false });
+
+    // Call next → Amina is at the counter, gets publish rights, and the TV is pinned for the room.
+    const yourTurn = nextEvent(amina, 'counter:yourTurn');
+    const changed = nextEvent(brian, 'counter:changed');
+    const pinned = nextEvent(brian, 'product:pinned');
+    const brianMoves = nextEvent(brian, 'queue:position');
+    const called = await sellerSocket.emitWithAck('queue:callNext', { sessionId: sid });
+    expect(called.counter).toMatchObject({ buyer: { name: 'Amina Wanjiru' }, timeLimitMinutes: 5 });
+    expect(await yourTurn).toMatchObject({ granted: true, timeLimitMinutes: 5 });
+    expect((await changed).counter.buyer.name).toBe('Amina Wanjiru');
+    expect((await pinned).product.id).toBe(product.id);
+    expect(await brianMoves).toMatchObject({ position: 1, total: 1 });
+    expect(setCounterPublish).toHaveBeenLastCalledWith(expect.stringContaining(sid), expect.any(String), true);
+
+    // A buyer reconnecting while at the counter gets a counter token; others stay watch-only.
+    const aminaUser = await User.findOne({ email: 'amina@example.com' });
+    expect((await RoomSession.findById(sid)).counterBuyer.toString()).toBe(aminaUser.id);
+    expect((await request(app).post(`/api/rooms/${sid}/token`).set('Cookie', brianCookie)).body.data.role).toBe('viewer');
+
+    // Next: Amina is done (publishing revoked), Brian comes up.
+    const aminaEnded = nextEvent(amina, 'counter:ended');
+    const brianTurn = nextEvent(brian, 'counter:yourTurn');
+    await sellerSocket.emitWithAck('queue:callNext', { sessionId: sid });
+    expect(await aminaEnded).toMatchObject({ status: 'done' });
+    await brianTurn;
+    expect(setCounterPublish).toHaveBeenCalledWith(expect.any(String), aminaUser.id, false);
+
+    // Brian's REST view of the queue.
+    const q = await request(app).get(`/api/rooms/${sid}/queue`).set('Cookie', brianCookie);
+    expect(q.body.data).toMatchObject({ mine: { status: 'at_counter' }, counter: { buyer: { name: 'Brian Otieno' } } });
+
+    // End counter; nobody left → Call next just reports an empty counter.
+    expect(await sellerSocket.emitWithAck('queue:endCounter', { sessionId: sid })).toMatchObject({ ok: true });
+    expect(await sellerSocket.emitWithAck('queue:callNext', { sessionId: sid })).toMatchObject({ ok: true, counter: null });
+    expect((await QueueEntry.find({ session: sid }).sort({ createdAt: 1 })).map((e) => e.status)).toEqual(['done', 'done']);
+  });
+
+  it('lets buyers leave, the seller skip, and cancels whoever is still waiting when the room closes', async () => {
+    const { seller, session, sellerSocket, amina, brian } = await liveRoomWithBuyers();
+    const sid = session.id;
+    await amina.emitWithAck('queue:join', { sessionId: sid });
+    await brian.emitWithAck('queue:join', { sessionId: sid });
+
+    expect(await amina.emitWithAck('queue:leave', { sessionId: sid })).toMatchObject({ ok: true });
+    const brianEntry = await QueueEntry.findOne({ session: sid, active: true });
+    const skipped = nextEvent(brian, 'queue:position');
+    await sellerSocket.emitWithAck('queue:skip', { sessionId: sid, entryId: brianEntry.id });
+    expect(await skipped).toMatchObject({ status: 'skipped' });
+
+    // Walking out of the room (explicit leave) drops your place straight away.
+    await amina.emitWithAck('queue:join', { sessionId: sid });
+    await amina.emitWithAck('room:leave', { sessionId: sid });
+    await sleep(100);
+    expect(await QueueEntry.countDocuments({ session: sid, active: true })).toBe(0);
+
+    await brian.emitWithAck('queue:join', { sessionId: sid });
+    await request(app).post('/api/rooms/end').set('Cookie', seller);
+    const statuses = (await QueueEntry.find({ session: sid }).sort({ createdAt: 1 })).map((e) => e.status);
+    expect(statuses).toEqual(['left', 'skipped', 'left', 'cancelled']);
+  });
+
+  it('keeps a buyer\'s place through a dropped connection', async () => {
+    const { session, amina } = await liveRoomWithBuyers();
+    await amina.emitWithAck('queue:join', { sessionId: session.id });
+    amina.disconnect(); // no room:leave: like a page refresh or a network drop
+    await sleep(300);
+    expect(await QueueEntry.countDocuments({ session: session.id, status: 'waiting' })).toBe(1);
   });
 });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Clock, Loader2, Radio, Store as StoreIcon, Video, Volume2, WifiOff } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
@@ -10,7 +10,8 @@ import { ProductDialog } from '../../features/mall/ProductDialog.jsx';
 import { ChatPanel } from '../../features/room/ChatPanel.jsx';
 import { TrackAudio, TrackVideo } from '../../features/room/Media.jsx';
 import { LiveBadge, PinnedProduct, PresenceBar } from '../../features/room/RoomBits.jsx';
-import { useLiveKit } from '../../features/room/useLiveKit.js';
+import { BuyerQueueCard, CounterTile, JoinQueueDialog } from '../../features/room/Queue.jsx';
+import { mediaErrorMessage, useLiveKit } from '../../features/room/useLiveKit.js';
 import { useRoomSocket } from '../../features/room/useRoomSocket.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useFetch } from '../../hooks/useFetch.js';
@@ -40,21 +41,85 @@ function Room({ store, session, products }) {
   const rt = useRoomSocket(session.id);
   const [tab, setTab] = useState('chat');
   const [viewing, setViewing] = useState(null);
+  const [joining, setJoining] = useState(null); // { product } while the join dialog is open
+
+  // ---- The counter (doc 07 §4): when called up, turn the buyer's mic on ----
+  const atCounter = rt.myQueue.status === 'at_counter';
+  const [micWanted, setMicWanted] = useState(false);
+  const [counterError, setCounterError] = useState('');
+  const usedCounterToken = useRef(false);
+  const { setMic, stopPublishing } = lk;
+  const reloadToken = tokenReq.reload;
+
+  useEffect(() => {
+    if (rt.turn) {
+      setMicWanted(true);
+      setCounterError('');
+    }
+  }, [rt.turn]);
+
+  useEffect(() => {
+    if (atCounter) return;
+    setMicWanted(false);
+    stopPublishing();
+    // Reconnected with a counter token earlier: go back to a watch-only token.
+    if (usedCounterToken.current) {
+      usedCounterToken.current = false;
+      reloadToken();
+    }
+  }, [atCounter, stopPublishing, reloadToken]);
+
+  useEffect(() => {
+    if (!atCounter || lk.connection !== 'connected') return undefined;
+    if (!micWanted) {
+      if (lk.local.mic) setMic(false).catch(() => {});
+      return undefined;
+    }
+    if (lk.local.mic) return undefined;
+    let cancelled = false;
+    (async () => {
+      // The server grants publishing just before "your turn"; allow a moment for it to reach the video connection.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await setMic(true);
+          return;
+        } catch (err) {
+          if (cancelled) return;
+          if (['NotAllowedError', 'NotFoundError', 'NotReadableError'].includes(err?.name)) {
+            setCounterError(mediaErrorMessage(err).replace('camera or microphone', 'microphone') + ' You can type in the chat instead.');
+            setMicWanted(false);
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+      if (cancelled) return;
+      if (!usedCounterToken.current) {
+        // Not granted on this connection: reconnect with a counter token.
+        usedCounterToken.current = true;
+        reloadToken();
+      } else setCounterError('Could not turn on your microphone. You can type in the chat instead.');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [atCounter, micWanted, lk.connection, lk.local.mic, setMic, reloadToken]);
 
   if (rt.status === 'closed' || tokenReq.error?.status === 404) {
     return <ClosedScreen store={store} message={rt.closed?.message} />;
   }
 
-  // Until the queue arrives (Sprint 5), "show me this" asks the seller in the chat.
-  const askToSee = async (product) => {
+  const loginNext = () => navigate(`/login?next=${encodeURIComponent(`/shop/${store.slug}/live`)}`);
+  const openJoin = (product) => {
     setViewing(null);
-    if (!rt.canChat) return navigate(`/login?next=${encodeURIComponent(`/shop/${store.slug}/live`)}`);
-    setTab('chat');
-    await rt.send(`Can you show me the ${product.name}?`);
+    if (!rt.canChat) return loginNext();
+    setJoining({ product });
   };
+  const queueAhead = rt.myQueue.status === 'waiting' ? rt.myQueue.position - 1 : rt.queueLength;
+  const otherAtCounter = !atCounter && lk.counter;
 
   const firstName = user?.name?.split(' ')[0];
-  const welcome = `Welcome to ${store.name}${firstName ? `, ${firstName}` : ''}! Watch the demo, ask questions in the chat, and tap a product to see it up close.`;
+  const welcome = `Welcome to ${store.name}${firstName ? `, ${firstName}` : ''}! Watch the demo, ask in the chat, or join the queue to talk to the seller at the counter.`;
   const offline = lk.connection === 'reconnecting' || rt.status === 'reconnecting';
 
   return (
@@ -86,6 +151,23 @@ function Room({ store, session, products }) {
                 </div>
               )}
               {lk.seller.audio && <TrackAudio track={lk.seller.audio} />}
+              {/* The buyer at the counter: everyone else hears them (and sees them if they turn their camera on). */}
+              {otherAtCounter && lk.counter.audio && <TrackAudio track={lk.counter.audio} />}
+              {otherAtCounter && lk.counter.video && (
+                <CounterTile label={`At the counter: ${lk.counter.name}`}>
+                  <TrackVideo track={lk.counter.video} className="size-full object-cover" />
+                </CounterTile>
+              )}
+              {atCounter && lk.local.camera && (
+                <CounterTile label="You">
+                  <TrackVideo track={lk.local.camera} mirror className="size-full object-cover" />
+                </CounterTile>
+              )}
+              {rt.counter && !(otherAtCounter && lk.counter.video) && !(atCounter && lk.local.camera) && (
+                <span className="absolute bottom-3 right-3 hidden rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white sm:inline-flex">
+                  At the counter: {atCounter ? 'you' : rt.counter.buyer.name.split(' ')[0]}
+                </span>
+              )}
 
               <div className="absolute left-3 top-3">
                 <LiveBadge viewers={rt.presence.viewerCount} />
@@ -126,6 +208,18 @@ function Room({ store, session, products }) {
               </div>
             </div>
             <PresenceBar presence={rt.presence} />
+          </div>
+
+          {/* Queue & counter */}
+          <div className="px-4 pt-3 lg:px-0 lg:pt-0">
+            <BuyerQueueCard
+              rt={rt}
+              lk={lk}
+              micWanted={micWanted}
+              onMicToggle={() => setMicWanted((v) => !v)}
+              counterError={counterError}
+              onJoin={openJoin}
+            />
           </div>
 
           {/* Mobile: chat / shelf tabs */}
@@ -179,7 +273,20 @@ function Room({ store, session, products }) {
         />
       </div>
 
-      <ProductDialog product={viewing} onClose={() => setViewing(null)} onDemo={askToSee} />
+      <ProductDialog
+        product={viewing}
+        onClose={() => setViewing(null)}
+        onDemo={openJoin}
+        demoLabel="Ask to see this"
+        demoText="Join the queue for the counter: the seller shows it to you up close and you can ask anything, then pay with M-Pesa."
+      />
+      <JoinQueueDialog
+        open={Boolean(joining)}
+        product={joining?.product ?? null}
+        waiting={queueAhead}
+        onClose={() => setJoining(null)}
+        onJoin={rt.joinQueue}
+      />
     </div>
   );
 }

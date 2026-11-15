@@ -9,11 +9,23 @@ import {
   recentMessages,
   sessionView,
 } from '../services/roomService.js';
-import { addPresence, removePresence, sellerSocketCount, sessionsOf } from './presence.js';
+import {
+  buyerLeftRoom,
+  callNext,
+  counterView,
+  endCounter,
+  joinQueue,
+  leaveQueue,
+  myQueueState,
+  queueList,
+  skip,
+  waitingCount,
+} from '../services/queueService.js';
+import { addPresence, removePresence, sellerSocketCount, sessionsOf, userPresent } from './presence.js';
 import { sellerRoom, sessionRoom } from './io.js';
 import { logger } from '../utils/logger.js';
 
-// Doc 07 §3: room:join / room:leave / chat:send / product:pin.
+// Doc 07 §3: room:join / room:leave / chat:send / product:pin, and the queue:* events.
 // Every handler answers through the ack callback: { ok: true, ... } or { ok: false, error }.
 
 const CHAT_INTERVAL_MS = 1000;
@@ -84,26 +96,92 @@ export function registerRoomHandlers(socket) {
         recentMessages: await recentMessages(session._id),
         isSeller,
         canChat: Boolean(user),
+        counter: await counterView(session._id),
+        queueLength: await waitingCount(session._id),
+        // The seller gets the whole queue; a logged-in buyer gets their own place.
+        ...(isSeller ? { queue: await queueList(session._id) } : {}),
+        ...(!isSeller && user ? { myQueue: await myQueueState(session._id, user.id) } : {}),
       };
       socket.emit('room:state', state);
       return state;
     }),
   );
 
-  const leave = (sessionId) => {
+  const leave = (sessionId, { explicit }) => {
     const entry = joined.get(sessionId);
     joined.delete(sessionId);
     socket.leave(sessionRoom(sessionId));
     socket.leave(sellerRoom(sessionId));
     const person = removePresence(sessionId, socket.id);
+    const wasSeller = entry?.isSeller || person?.isSeller;
     // The seller's last connection to a live room went away: start the "seller gone" clock (doc 07 §8).
-    if ((entry?.isSeller || person?.isSeller) && sellerSocketCount(sessionId) === 0) armSellerGrace(sessionId);
+    if (wasSeller && sellerSocketCount(sessionId) === 0) armSellerGrace(sessionId);
+    // A buyer who walks out loses their place in the queue (a dropped connection gets a short grace period).
+    if (!wasSeller && user && !userPresent(sessionId, user.id)) buyerLeftRoom(sessionId, user.id, { immediate: explicit });
   };
 
   socket.on(
     'room:leave',
     handler(socket, async (payload) => {
-      leave(sessionIdFrom(payload));
+      leave(sessionIdFrom(payload), { explicit: true });
+    }),
+  );
+
+  // ---- Queue & counter (doc 07 §4) ----
+
+  const requireBuyer = (sessionId) => {
+    if (!user) throw new SocketError('Log in to join the queue');
+    if (requireJoined(sessionId).isSeller) throw new SocketError('You are the seller in this room');
+  };
+  const requireSeller = (sessionId) => {
+    if (!requireJoined(sessionId).isSeller) throw new SocketError('Only the seller can do this');
+  };
+
+  socket.on(
+    'queue:join',
+    handler(socket, async (payload) => {
+      const sessionId = sessionIdFrom(payload);
+      requireBuyer(sessionId);
+      const productId = payload.productId ?? null;
+      if (productId !== null && !mongoose.isValidObjectId(productId)) throw new SocketError('Invalid product');
+      return { mine: await joinQueue(sessionId, user, { productId, note: payload.note }) };
+    }),
+  );
+
+  socket.on(
+    'queue:leave',
+    handler(socket, async (payload) => {
+      const sessionId = sessionIdFrom(payload);
+      requireBuyer(sessionId);
+      await leaveQueue(sessionId, user._id, 'left');
+    }),
+  );
+
+  socket.on(
+    'queue:callNext',
+    handler(socket, async (payload) => {
+      const sessionId = sessionIdFrom(payload);
+      requireSeller(sessionId);
+      return { counter: await callNext(sessionId) };
+    }),
+  );
+
+  socket.on(
+    'queue:endCounter',
+    handler(socket, async (payload) => {
+      const sessionId = sessionIdFrom(payload);
+      requireSeller(sessionId);
+      await endCounter(sessionId);
+    }),
+  );
+
+  socket.on(
+    'queue:skip',
+    handler(socket, async (payload) => {
+      const sessionId = sessionIdFrom(payload);
+      requireSeller(sessionId);
+      if (!mongoose.isValidObjectId(payload.entryId)) throw new SocketError('Invalid queue entry');
+      await skip(sessionId, payload.entryId);
     }),
   );
 
@@ -135,6 +213,6 @@ export function registerRoomHandlers(socket) {
   );
 
   socket.on('disconnect', () => {
-    for (const sessionId of new Set([...joined.keys(), ...sessionsOf(socket.id)])) leave(sessionId);
+    for (const sessionId of new Set([...joined.keys(), ...sessionsOf(socket.id)])) leave(sessionId, { explicit: false });
   });
 }

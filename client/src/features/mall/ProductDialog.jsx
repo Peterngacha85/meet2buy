@@ -5,7 +5,13 @@ import { Button } from '../../components/ui/Button.jsx';
 import { ProductImage } from './ProductCard.jsx';
 import { kes } from '../../utils/format.js';
 
-export function ProductDialog({ product, onClose, onDemo }) {
+export function ProductDialog({
+  product,
+  onClose,
+  onDemo,
+  demoLabel = 'Get a live demonstration',
+  demoText = 'See it demonstrated live by a salesperson, ask anything, then pay with M-Pesa.',
+}) {
   const [active, setActive] = useState(0);
   useEffect(() => setActive(0), [product]);
 
@@ -49,9 +55,9 @@ export function ProductDialog({ product, onClose, onDemo }) {
 
             <div className="mt-6 rounded-card bg-orange-soft p-4 sm:mt-auto">
               <p className="font-display font-bold text-navy">Ready to buy?</p>
-              <p className="mb-3 text-sm text-ink">See it demonstrated live by a salesperson, ask anything, then pay with M-Pesa.</p>
+              <p className="mb-3 text-sm text-ink">{demoText}</p>
               <Button variant="accent" className="w-full" onClick={() => onDemo(product)} disabled={!product.stock}>
-                <Video className="size-4" aria-hidden /> Get a live demonstration
+                <Video className="size-4" aria-hidden /> {demoLabel}
               </Button>
             </div>
           </div>

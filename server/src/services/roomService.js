@@ -3,6 +3,7 @@ import { RoomSession, publicSession } from '../models/RoomSession.js';
 import { ChatMessage, CHAT_MAX_LENGTH, publicMessage } from '../models/ChatMessage.js';
 import { Store } from '../models/Store.js';
 import { Product } from '../models/Product.js';
+import { QueueEntry } from '../models/QueueEntry.js';
 import { AppError } from '../utils/AppError.js';
 import { maskContacts } from '../utils/maskContacts.js';
 import { logger } from '../utils/logger.js';
@@ -59,8 +60,12 @@ export async function endSession(sessionId, reason = 'seller') {
   if (!session) return null;
 
   session.peakViewers = Math.max(session.peakViewers, peakOf(id));
+  const finishedAt = new Date();
   await Promise.all([
     session.save(),
+    // Doc 07 §4.9: whoever was at the counter was served; everyone still waiting is cancelled.
+    QueueEntry.updateMany({ session: id, status: 'at_counter' }, { status: 'done', active: false, finishedAt }),
+    QueueEntry.updateMany({ session: id, status: 'waiting' }, { status: 'cancelled', active: false, finishedAt }),
     Store.updateOne({ _id: session.store, currentSession: session._id }, { isLive: false, currentSession: null }),
   ]);
 

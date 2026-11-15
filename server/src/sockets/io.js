@@ -16,3 +16,4 @@ export function leaveAll(room) {
 
 export const sessionRoom = (sessionId) => `session:${sessionId}`;
 export const sellerRoom = (sessionId) => `seller:${sessionId}`;
+export const userRoom = (userId) => `user:${userId}`;

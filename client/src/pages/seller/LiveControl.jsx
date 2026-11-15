@@ -8,7 +8,9 @@ import { Spinner } from '../../components/ui/Spinner.jsx';
 import { FormError } from '../auth/AuthCard.jsx';
 import { ProductImage } from '../../features/mall/ProductCard.jsx';
 import { ChatPanel } from '../../features/room/ChatPanel.jsx';
-import { TrackVideo } from '../../features/room/Media.jsx';
+import { TrackAudio, TrackVideo } from '../../features/room/Media.jsx';
+import { CounterTile, SellerQueueCard } from '../../features/room/Queue.jsx';
+import { clock, useElapsedSeconds } from '../../features/room/useElapsed.js';
 import { LiveBadge, PinnedProduct, PresenceBar } from '../../features/room/RoomBits.jsx';
 import { mediaErrorMessage, startCameraAndMic, useLiveKit } from '../../features/room/useLiveKit.js';
 import { useRoomSocket } from '../../features/room/useRoomSocket.js';
@@ -17,20 +19,7 @@ import { useFetch } from '../../hooks/useFetch.js';
 import { api, apiError, unwrap } from '../../services/api.js';
 import { kes } from '../../utils/format.js';
 
-function useElapsed(since) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (!since) return undefined;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [since]);
-  if (!since) return '';
-  const s = Math.max(0, Math.floor((now - new Date(since).getTime()) / 1000));
-  const hh = Math.floor(s / 3600);
-  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-  const ss = String(s % 60).padStart(2, '0');
-  return hh ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`;
-}
+const useElapsed = (since) => clock(useElapsedSeconds(since));
 
 // Seller's live control (doc 07): camera preview → Go live → show products, chat, end.
 export function LiveControl() {
@@ -239,6 +228,13 @@ export function LiveControl() {
                   )}
                 </span>
               )}
+              {/* The buyer at the counter: you hear them, and see them if they turn their camera on. */}
+              {isLive && lk.counter?.audio && <TrackAudio track={lk.counter.audio} />}
+              {isLive && lk.counter?.video && (
+                <CounterTile label={lk.counter.name}>
+                  <TrackVideo track={lk.counter.video} className="size-full object-cover" />
+                </CounterTile>
+              )}
               <PinnedProduct product={isLive ? rt.pinned : null} onClear={() => pin(null)} className="absolute inset-x-3 bottom-3 sm:right-auto sm:w-[22rem]" />
             </div>
 
@@ -278,6 +274,7 @@ export function LiveControl() {
           </Card>
 
           {isLive && <PresenceBar presence={rt.presence} />}
+          {isLive && <SellerQueueCard rt={rt} />}
 
           {/* Shelf */}
           <Card className="p-4 sm:p-5">
