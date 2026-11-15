@@ -22,7 +22,7 @@ import {
   waitingCount,
 } from '../services/queueService.js';
 import { createOffer, declineOffer, openOffersFor } from '../services/offerService.js';
-import { addPresence, removePresence, sellerSocketCount, sessionsOf, userPresent } from './presence.js';
+import { addPresence, presenceOf, removePresence, sellerSocketCount, sessionsOf, userPresent } from './presence.js';
 import { sellerRoom, sessionRoom } from './io.js';
 import { logger } from '../utils/logger.js';
 
@@ -65,6 +65,7 @@ export function registerRoomHandlers(socket) {
   const requireJoined = (sessionId) => {
     const entry = joined.get(sessionId);
     if (!entry) throw new SocketError('Join the room first');
+    if (entry.observer) throw new SocketError('You are watching as an observer');
     return entry;
   };
 
@@ -77,6 +78,26 @@ export function registerRoomHandlers(socket) {
       });
       const store = await Store.findById(session.store).select('owner name');
       const isSeller = Boolean(user && store.owner.equals(user._id));
+
+      // Admin review: hears every event (chat, queue, counter), invisible and not counted as a shopper.
+      if (payload.observe && user?.role === 'admin' && !isSeller) {
+        socket.join(sessionRoom(sessionId));
+        socket.join(sellerRoom(sessionId));
+        joined.set(sessionId, { isSeller: false, observer: true });
+        const state = {
+          session: await sessionView(session),
+          presence: presenceOf(sessionId),
+          recentMessages: await recentMessages(session._id),
+          isSeller: false,
+          isObserver: true,
+          canChat: false,
+          counter: await counterView(session._id),
+          queueLength: await waitingCount(session._id),
+          queue: await queueList(session._id),
+        };
+        socket.emit('room:state', state);
+        return state;
+      }
 
       socket.join(sessionRoom(sessionId));
       if (isSeller) {
@@ -115,6 +136,7 @@ export function registerRoomHandlers(socket) {
     joined.delete(sessionId);
     socket.leave(sessionRoom(sessionId));
     socket.leave(sellerRoom(sessionId));
+    if (entry?.observer) return; // never in presence or the queue
     const person = removePresence(sessionId, socket.id);
     const wasSeller = entry?.isSeller || person?.isSeller;
     // The seller's last connection to a live room went away: start the "seller gone" clock (doc 07 §8).

@@ -27,7 +27,7 @@ function Message({ m }) {
  * Public chat (doc 07 §6). Guests can read; logging in unlocks typing.
  * `welcome` is a local greeting shown at the top (not saved).
  */
-export function ChatPanel({ messages, canChat, onSend, welcome, disabled = false, className = '' }) {
+export function ChatPanel({ messages, canChat, onSend, welcome, disabled = false, readOnly = null, className = '' }) {
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
@@ -74,7 +74,9 @@ export function ChatPanel({ messages, canChat, onSend, welcome, disabled = false
       </ol>
 
       <div className="border-t border-line p-3">
-        {canChat ? (
+        {readOnly ? (
+          <p className="text-center text-sm text-muted">{readOnly}</p>
+        ) : canChat ? (
           <form onSubmit={submit}>
             <div className="flex gap-2">
               <label className="sr-only" htmlFor="chat-input">

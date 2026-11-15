@@ -134,14 +134,16 @@ export async function applyStatusResult(body) {
   if (!r) return null;
   const params = Object.fromEntries((r.ResultParameters?.ResultParameter ?? []).map((p) => [p.Key, p.Value]));
   const occasion = (r.ReferenceData?.ReferenceItem && [].concat(r.ReferenceData.ReferenceItem).find((i) => i.Key === 'Occasion')?.Value) || null;
+  // 'failed' too: an admin retry asks first whether a "failed" payout actually went through.
+  const open = { $in: ['processing', 'failed'] };
   const payout = occasion
-    ? await Payout.findOne({ _id: occasion, status: 'processing' }).catch(() => null)
-    : await Payout.findOne({ originatorConversationId: r.OriginatorConversationID, status: 'processing' });
+    ? await Payout.findOne({ _id: occasion, status: open }).catch(() => null)
+    : await Payout.findOne({ originatorConversationId: r.OriginatorConversationID, status: open });
   if (!payout || Number(r.ResultCode) !== 0) return null;
   const state = String(params.TransactionStatus ?? '').toLowerCase();
   if (state === 'completed') {
     return Payout.findOneAndUpdate(
-      { _id: payout._id, status: 'processing' },
+      { _id: payout._id, status: open },
       { status: 'completed', transactionId: params.ReceiptNo ?? payout.transactionId, resultCode: 0, resultDesc: 'Confirmed by status check', completedAt: new Date() },
       { returnDocument: 'after' },
     );

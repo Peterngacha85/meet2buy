@@ -34,6 +34,56 @@ function PayoutDetails({ payout }) {
   );
 }
 
+/** Per-shop commission override (doc 08 §4). Empty = the default rate from Settings. */
+function CommissionField({ seller }) {
+  const [value, setValue] = useState(seller.commissionRate ?? '');
+  const [saved, setSaved] = useState(seller.commissionRate ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const dirty = String(value) !== String(saved);
+
+  async function save() {
+    setBusy(true);
+    setError('');
+    try {
+      const rate = value === '' ? null : Number(value);
+      const { store } = await unwrap(api.patch(`/admin/sellers/${seller.id}/commission`, { rate }));
+      setSaved(store.commissionRate ?? '');
+      setValue(store.commissionRate ?? '');
+    } catch (err) {
+      setError(apiError(err).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <label htmlFor={`rate-${seller.id}`} className="text-muted">
+        Commission
+      </label>
+      <input
+        id={`rate-${seller.id}`}
+        type="number"
+        min="0"
+        max="50"
+        step="0.5"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="default"
+        className="h-8 w-24 rounded-btn border border-line px-2 text-sm focus:border-navy focus:outline-none"
+      />
+      <span className="text-muted">%</span>
+      {dirty && (
+        <Button size="sm" variant="outline" onClick={save} loading={busy} className="!h-8">
+          Save
+        </Button>
+      )}
+      {error && <span className="text-danger">{error}</span>}
+    </div>
+  );
+}
+
 function SellerRow({ seller, onChanged }) {
   const [mode, setMode] = useState(null); // 'reject' | 'suspend'
   const [reason, setReason] = useState('');
@@ -83,7 +133,10 @@ function SellerRow({ seller, onChanged }) {
               </p>
             </div>
           )}
-          <PayoutDetails payout={seller.payout} />
+          <div className="space-y-2">
+            <PayoutDetails payout={seller.payout} />
+            {seller.status === 'approved' && <CommissionField seller={seller} />}
+          </div>
         </div>
         {seller.rejectionReason && (
           <p className="text-sm">

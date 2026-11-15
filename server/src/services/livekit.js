@@ -18,7 +18,8 @@ const TOKEN_TTL = '6h';
 
 /**
  * A LiveKit access token for one participant.
- * role 'seller' publishes camera + mic; 'viewer' only watches; 'counter' (Sprint 5) may publish mic/camera.
+ * role 'seller' publishes camera + mic; 'viewer' only watches; 'counter' may publish mic/camera;
+ * 'observer' (admin review) only watches and is hidden from the other participants.
  */
 export async function createRoomToken({ room, identity, name, role }) {
   assertConfigured();
@@ -37,6 +38,8 @@ export async function createRoomToken({ room, identity, name, role }) {
     // A buyer at the counter may use their mic and camera only (no screen sharing).
     ...(role === 'counter' ? { canPublishSources: ['camera', 'microphone'] } : {}),
     canPublishData: role === 'seller',
+    // Admin reviewing a room: sees and hears everything, invisible to everyone in it.
+    ...(role === 'observer' ? { hidden: true } : {}),
     // The seller is the room "admin" in LiveKit terms only for their own room.
     roomAdmin: role === 'seller',
   });

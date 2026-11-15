@@ -72,6 +72,7 @@ const orderSchema = new mongoose.Schema(
     status: { type: String, enum: ORDER_STATUSES, default: 'awaiting_payment' },
     stockReleased: { type: Boolean, default: false }, // guards against returning reserved stock twice
     holdReason: { type: String, default: null }, // amount_mismatch | late_payment | unconfirmed_payment
+    adminNote: { type: String, default: null }, // how an admin resolved a held order
     paidAt: { type: Date, default: null },
     fulfilledAt: { type: Date, default: null },
     payment: { type: ObjectId, ref: 'Payment', default: null },
@@ -138,6 +139,7 @@ const payoutSchema = new mongoose.Schema(
     lastAttemptAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     timedOutAt: { type: Date, default: null }, // Safaricom queue timeout: a status check was asked for
+    statusCheckedAt: { type: Date, default: null }, // admin retry: asked M-Pesa whether the last attempt really failed
   },
   { timestamps: true, toJSON },
 );

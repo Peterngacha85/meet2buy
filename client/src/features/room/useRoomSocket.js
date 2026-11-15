@@ -28,7 +28,7 @@ const initial = {
  * The room's realtime side (doc 07 §3): presence, chat, pinned product, queue, counter and "room closed".
  * Rejoins by itself after a dropped connection.
  */
-export function useRoomSocket(sessionId) {
+export function useRoomSocket(sessionId, { observe = false } = {}) {
   const [state, setState] = useState(initial);
   const socketRef = useRef(null);
 
@@ -40,7 +40,7 @@ export function useRoomSocket(sessionId) {
     const mine = (payload) => payload?.sessionId === sessionId;
 
     socket.on('connect', () => {
-      socket.emit('room:join', { sessionId }, (res) => {
+      socket.emit('room:join', { sessionId, observe }, (res) => {
         if (!res?.ok) patch({ status: 'closed', closed: { reason: 'closed', message: res?.error ?? 'This room is closed' } });
       });
     });
@@ -102,7 +102,7 @@ export function useRoomSocket(sessionId) {
       // So a "closed" from this session never leaks into the next one.
       setState(initial);
     };
-  }, [sessionId]);
+  }, [sessionId, observe]);
 
   /** Emit with an ack. Resolves to { ok, error?, ... } and never rejects. */
   const emit = useCallback(

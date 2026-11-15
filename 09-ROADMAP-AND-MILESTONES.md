@@ -10,7 +10,7 @@
 | **4. The room (core)** ✅ | 4–5 | LiveKit integration, go live / end, buyer viewing, chat, presence, product shelf, pin product, room UI desktop + mobile. Also: "Live now" strip with viewer counts, auto-close after the seller is gone 2 min, room closes on suspension |
 | **5. Queue & counter** ✅ | 5 | Queue join/leave/position, call next, counter publish permissions, auto-pin. Also: notes to the seller (contacts masked), skip, counter timer with "Time's up", 20 s grace so a refresh keeps your place |
 | **6. Sales & payments** ✅ (sandbox keys pending) | 6 | Offers, checkout sheet, STK push + callback, commission, B2B payout + result handling, orders for buyer & seller. Also: simulated M-Pesa mode until Daraja keys arrive, unpaid-order sweeper, callback secret, live notifications (toast + badges) for demo requests / orders / payouts / shops to review, "It's your turn" pop-up, "shop is live" alert for demo requesters |
-| **7. Admin & launch** | 7 | Admin overview, transactions, payouts + retry, commission settings, live rooms, users; testing; switch to client's production accounts; go live |
+| **7. Admin & launch** (admin ✅) | 7 | Admin overview, transactions, payouts + retry, commission settings, live rooms, users; testing; switch to client's production accounts; go live. Done: overview, live rooms (watch invisibly + close), transactions + resolve held orders, payouts + safe retry, settings, per-shop commission, users. Left: add/remove admins, Daraja sandbox run-through, production accounts, go live |
 
 **Protect the core:** if time runs short, the room (Sprint 4) and payments (Sprint 6) take priority over admin polish.
 

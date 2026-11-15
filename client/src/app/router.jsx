@@ -18,14 +18,18 @@ import { SellerPayouts } from '../pages/seller/Payouts.jsx';
 import { DemoRequests } from '../pages/seller/DemoRequests.jsx';
 import { AdminOverview } from '../pages/admin/Overview.jsx';
 import { AdminSellers } from '../pages/admin/Sellers.jsx';
-import { ComingSoon } from '../pages/ComingSoon.jsx';
+import { AdminLiveRooms } from '../pages/admin/LiveRooms.jsx';
+import { AdminTransactions } from '../pages/admin/Transactions.jsx';
+import { AdminPayouts } from '../pages/admin/Payouts.jsx';
+import { AdminSettings } from '../pages/admin/Settings.jsx';
+import { AdminUsers } from '../pages/admin/Users.jsx';
 import { NotFound } from '../pages/NotFound.jsx';
 
-const soon = (title, sprint) => ({ element: <ComingSoon title={title} sprint={sprint} /> });
 
 // The live room pages carry the video SDK, so they load only when opened.
 const liveRoom = async () => ({ Component: (await import('../pages/room/LiveRoom.jsx')).LiveRoom });
 const liveControl = async () => ({ Component: (await import('../pages/seller/LiveControl.jsx')).LiveControl });
+const watchRoom = async () => ({ Component: (await import('../pages/admin/WatchRoom.jsx')).AdminWatchRoom });
 
 export const router = createBrowserRouter([
   {
@@ -74,11 +78,12 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <AdminOverview /> },
           { path: 'sellers', element: <AdminSellers /> },
-          { path: 'transactions', ...soon('Transactions', 7) },
-          { path: 'payouts', ...soon('Payouts', 7) },
-          { path: 'live-rooms', ...soon('Live rooms', 7) },
-          { path: 'users', ...soon('Users', 7) },
-          { path: 'settings', ...soon('Settings', 7) },
+          { path: 'transactions', element: <AdminTransactions /> },
+          { path: 'payouts', element: <AdminPayouts /> },
+          { path: 'live-rooms', element: <AdminLiveRooms /> },
+          { path: 'live-rooms/:sessionId', lazy: watchRoom },
+          { path: 'users', element: <AdminUsers /> },
+          { path: 'settings', element: <AdminSettings /> },
         ],
       },
     ],
