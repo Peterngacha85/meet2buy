@@ -382,4 +382,39 @@ describe('Offers in the room', () => {
     await request(app).post('/api/rooms/start').set('Cookie', seller);
     expect(await live).toMatchObject({ type: 'shop_live', title: 'Grace Fashion is live now', link: '/shop/grace-fashion/live', action: 'Walk in' });
   });
+
+  it('lets the seller invite a demo requester into the live room, even one who was offline', async () => {
+    const { seller, store, product } = await shopWithProduct();
+    const buyer = await loginAs('buyer', 'amina@example.com', 'Amina Wanjiru');
+    const reqRes = await request(app).post(`/api/stores/${store.id}/presentation-requests`).set('Cookie', buyer).send({ product: product.id });
+    const requestId = reqRes.body.data.request.id;
+
+    // Not live yet → go live first.
+    const early = await request(app).post(`/api/stores/mine/presentation-requests/${requestId}/invite`).set('Cookie', seller);
+    expect(early.status).toBe(409);
+
+    await request(app).post('/api/rooms/start').set('Cookie', seller);
+    const b = await socketAs(buyer);
+    const invite = nextEvent(b, 'notify');
+    const res = await request(app).post(`/api/stores/mine/presentation-requests/${requestId}/invite`).set('Cookie', seller);
+    expect(res.status).toBe(200);
+    expect(res.body.data.request).toMatchObject({ status: 'seen' });
+    expect(await invite).toMatchObject({
+      type: 'demo_invite',
+      title: 'Grace Fashion is ready to show you the Khaki shirt',
+      link: `/shop/grace-fashion/live?ask=${product.id}`,
+      action: 'Join the demo',
+      sticky: true,
+    });
+
+    // The shopper opens Meet2buy later: the invite is handed over on sync.
+    const later = await socketAs(buyer);
+    const again = nextEvent(later, 'notify');
+    later.emit('notify:sync');
+    expect((await again).type).toBe('demo_invite');
+
+    // Active requests (open + seen) for Live control.
+    const active = await request(app).get('/api/stores/mine/presentation-requests?status=active').set('Cookie', seller);
+    expect(active.body.data.requests).toHaveLength(1);
+  });
 });

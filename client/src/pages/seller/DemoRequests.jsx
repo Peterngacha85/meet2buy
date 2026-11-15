@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNotifyStore } from '../../store/notifyStore.js';
+import { useMyStore } from '../../features/seller/useMyStore.js';
+import { InviteButton } from '../../features/seller/InviteButton.jsx';
 import { MessageSquareText } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
@@ -20,6 +22,7 @@ export function DemoRequests() {
   const [tab, setTab] = useState('open');
   const { data, loading, error, setData, reload } = useFetch(() => api.get(`/stores/mine/presentation-requests?status=${tab}`), [tab]);
   const [actionError, setActionError] = useState('');
+  const { store } = useMyStore();
   const newCount = useNotifyStore((s) => s.badges.requests);
   const refreshBadges = useNotifyStore((s) => s.refreshBadges);
 
@@ -49,7 +52,8 @@ export function DemoRequests() {
     <div className="mx-auto max-w-3xl">
       <h1 className="text-[28px] font-bold">Demo requests</h1>
       <p className="mt-1 text-muted">
-        Shoppers who clicked “Ready to buy?” while your shop was closed. Show them these products when you next go live.
+        Shoppers who clicked “Ready to buy?” while your shop was closed. Go live and invite them — they get a pop-up to join your
+        room, and you call them to the counter to demonstrate.
       </p>
 
       <div className="mt-6 flex gap-2">
@@ -96,6 +100,15 @@ export function DemoRequests() {
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
+                  {r.status !== 'closed' && (
+                    <InviteButton
+                      request={r}
+                      isLive={Boolean(store?.isLive)}
+                      onInvited={(u) =>
+                        setData((d) => ({ ...d, requests: d.requests.map((x) => (x.id === r.id ? { ...x, ...u, product: x.product, buyer: x.buyer } : x)) }))
+                      }
+                    />
+                  )}
                   {r.status === 'open' && (
                     <Button size="sm" variant="outline" onClick={() => move(r, 'seen')}>
                       Seen

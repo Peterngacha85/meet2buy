@@ -7,7 +7,7 @@ import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
 import { escapeRegex } from '../utils/slug.js';
 import { viewerCount } from '../sockets/presence.js';
-import { notifyAdmins, notifyUser } from '../services/notifyService.js';
+import { demoInvite, notifyAdmins, notifyUser } from '../services/notifyService.js';
 
 const PAGE_SIZE = 60;
 
@@ -161,6 +161,7 @@ export async function createPresentationRequest(req, res) {
 export async function listPresentationRequests(req, res) {
   const filter = { store: req.store._id };
   if (['open', 'seen', 'closed'].includes(req.query.status)) filter.status = req.query.status;
+  if (req.query.status === 'active') filter.status = { $in: ['open', 'seen'] }; // Live control's list
 
   const requests = await PresentationRequest.find(filter)
     .sort({ createdAt: -1 })
@@ -173,6 +174,22 @@ export async function listPresentationRequests(req, res) {
     requests: requests.map((r) => ({ ...r.toJSON(), departmentName: depName(r.department) })),
     openCount: await PresentationRequest.countDocuments({ store: req.store._id, status: 'open' }),
   });
+}
+
+// POST /api/stores/mine/presentation-requests/:id/invite — "come in now, I'll demonstrate it live"
+export async function invitePresentationRequest(req, res) {
+  const store = req.store;
+  if (!store.isLive || !store.currentSession) throw new AppError(409, 'Go live first, then invite the shopper');
+  const request = await PresentationRequest.findOne({ _id: req.params.id, store: store._id }).populate('product', 'name');
+  if (!request) throw new AppError(404, 'Request not found');
+  if (request.status === 'closed') throw new AppError(409, 'This request is already done');
+
+  request.invitedAt = new Date();
+  request.invitedSession = store.currentSession;
+  if (request.status === 'open') request.status = 'seen';
+  await request.save();
+  notifyUser(request.buyer, demoInvite(store, request));
+  ok(res, { request });
 }
 
 // PATCH /api/stores/mine/presentation-requests/:id

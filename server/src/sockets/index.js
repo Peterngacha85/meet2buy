@@ -6,7 +6,7 @@ import { AUTH_COOKIE, verifyToken } from '../utils/token.js';
 import { logger } from '../utils/logger.js';
 import { setIo } from './io.js';
 import { registerRoomHandlers } from './roomHandlers.js';
-import { ADMINS_ROOM } from '../services/notifyService.js';
+import { ADMINS_ROOM, deliverPendingInvites } from '../services/notifyService.js';
 
 /**
  * Socket.io bootstrap. Authenticates with the same JWT cookie as the REST API.
@@ -39,6 +39,10 @@ export function initSockets(httpServer) {
     logger.info(`socket connected ${socket.id} (${user ? `${user.role} ${user.id}` : 'guest'})`);
 
     registerRoomHandlers(socket);
+    // The app's notification center asks once on connect: invites sent while this shopper was offline.
+    socket.on('notify:sync', () => {
+      if (user) deliverPendingInvites(user._id).catch((err) => logger.warn(`invite sync failed: ${err.message}`));
+    });
     // Sprint 5: registerQueueHandlers(socket)
 
     socket.on('disconnect', () => logger.info(`socket disconnected ${socket.id}`));

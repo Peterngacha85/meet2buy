@@ -28,6 +28,7 @@ router.patch('/mine/payout', ...seller, validate(payoutSchema), stores.updatePay
 router.post('/mine/resubmit', ...seller, stores.resubmit);
 router.get('/mine/presentation-requests', ...seller, stores.listPresentationRequests);
 router.patch('/mine/presentation-requests/:id', ...seller, idParam, validate(requestStatusSchema), stores.updatePresentationRequest);
+router.post('/mine/presentation-requests/:id/invite', ...seller, idParam, stores.invitePresentationRequest);
 
 router.post('/:storeId/presentation-requests', protect, storeIdParam, validate(presentationRequestSchema), stores.createPresentationRequest);
 router.get('/:slug', optionalAuth, stores.getStore);

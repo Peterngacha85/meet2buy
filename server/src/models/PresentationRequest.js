@@ -10,6 +10,9 @@ const presentationRequestSchema = new mongoose.Schema(
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
     message: { type: String, trim: true, maxlength: 300, default: '' },
     status: { type: String, enum: ['open', 'seen', 'closed'], default: 'open' },
+    // The seller invited this shopper into their live room for the demo.
+    invitedAt: { type: Date, default: null },
+    invitedSession: { type: mongoose.Schema.Types.ObjectId, ref: 'RoomSession', default: null },
   },
   {
     timestamps: true,

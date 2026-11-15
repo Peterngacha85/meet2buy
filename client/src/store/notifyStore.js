@@ -2,18 +2,45 @@ import { create } from 'zustand';
 import { api, unwrap } from '../services/api.js';
 
 let nextId = 1;
+const DISMISSED = 'm2b_dismissed_invites';
+
+// Invites the shopper already closed or acted on in this browser session are not shown again.
+function dismissedKeys() {
+  try {
+    return new Set(JSON.parse(sessionStorage.getItem(DISMISSED) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+function rememberDismissed(key) {
+  try {
+    sessionStorage.setItem(DISMISSED, JSON.stringify([...dismissedKeys(), key].slice(-50)));
+  } catch {
+    /* private mode: fine */
+  }
+}
+const keyOf = (t) => `${t.type}:${t.link ?? t.title}`;
 
 /** Toasts on screen and the sidebar badge counts (demo requests, orders to ship, shops to review). */
-export const useNotifyStore = create((set) => ({
+export const useNotifyStore = create((set, get) => ({
   toasts: [],
   badges: {},
 
+  /** Returns the new toast id, or null when the same toast is already showing or was dismissed. */
   push(toast) {
+    const key = keyOf(toast);
+    if (get().toasts.some((t) => t.key === key)) return null;
+    if (toast.sticky && dismissedKeys().has(key)) return null;
     const id = nextId++;
-    set((s) => ({ toasts: [...s.toasts.slice(-3), { id, ...toast }] }));
+    set((s) => ({ toasts: [...s.toasts.slice(-3), { id, key, ...toast }] }));
     return id;
   },
-  dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  dismiss: (id) =>
+    set((s) => {
+      const t = s.toasts.find((x) => x.id === id);
+      if (t?.sticky) rememberDismissed(t.key);
+      return { toasts: s.toasts.filter((x) => x.id !== id) };
+    }),
 
   async refreshBadges() {
     try {

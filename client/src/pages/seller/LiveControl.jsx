@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { Camera, CameraOff, Clock, ExternalLink, Loader2, Mic, MicOff, Radio, Square, Video, WifiOff } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
@@ -15,6 +15,7 @@ import { LiveBadge, PinnedProduct, PresenceBar } from '../../features/room/RoomB
 import { mediaErrorMessage, startCameraAndMic, useLiveKit } from '../../features/room/useLiveKit.js';
 import { useRoomSocket } from '../../features/room/useRoomSocket.js';
 import { useMyStore } from '../../features/seller/useMyStore.js';
+import { InviteButton } from '../../features/seller/InviteButton.jsx';
 import { useFetch } from '../../hooks/useFetch.js';
 import { api, apiError, unwrap } from '../../services/api.js';
 import { kes } from '../../utils/format.js';
@@ -25,7 +26,9 @@ const useElapsed = (since) => clock(useElapsedSeconds(since));
 export function LiveControl() {
   const { store, setStore } = useMyStore();
   const mine = useFetch(() => api.get('/rooms/mine'));
-  const requests = useFetch(() => api.get('/stores/mine/presentation-requests?status=open'));
+  const requests = useFetch(() => api.get('/stores/mine/presentation-requests?status=active'));
+  const [params, setParams] = useSearchParams();
+  const inviteId = params.get('invite'); // from "Go live & invite" on Demo requests
 
   const [live, setLive] = useState(null); // { session, livekit }
   const [tracks, setTracks] = useState(null); // local camera + mic tracks
@@ -83,6 +86,24 @@ export function LiveControl() {
       setStore({ ...store, isLive: false });
     }
   }, [rt.status, rt.closed, live, store, setStore]);
+
+  // Live now and an invite is waiting to be sent: send it exactly once.
+  const sentInvite = useRef(null);
+  const reloadRequests = requests.reload;
+  useEffect(() => {
+    if (!inviteId || !live || rt.status !== 'live' || sentInvite.current === inviteId) return;
+    sentInvite.current = inviteId;
+    setParams((p) => {
+      p.delete('invite');
+      return p;
+    }, { replace: true });
+    unwrap(api.post(`/stores/mine/presentation-requests/${inviteId}/invite`))
+      .then(() => {
+        setNotice("Invite sent. The shopper gets a pop-up to join your room — call them to the counter when they're in the queue.");
+        reloadRequests();
+      })
+      .catch((err) => setError(apiError(err).message));
+  }, [inviteId, live, rt.status, setParams, reloadRequests]);
 
   if (!store || mine.loading) return <Spinner />;
 
@@ -176,6 +197,11 @@ export function LiveControl() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
           <FormError message={error || lk.error} />
+          {inviteId && !live && (
+            <p role="status" className="rounded-btn border border-orange/40 bg-orange-soft px-3.5 py-2.5 text-sm text-ink">
+              Turn on your camera and press <strong>Go live</strong>. Your demo invite is sent to the shopper as soon as you're live.
+            </p>
+          )}
           {notice && (
             <p role="status" className="rounded-btn border border-navy/15 bg-navy-soft px-3.5 py-2.5 text-sm text-navy">
               {notice}
@@ -276,6 +302,39 @@ export function LiveControl() {
           {isLive && <PresenceBar presence={rt.presence} />}
           {isLive && <SellerQueueCard rt={rt} products={products} />}
 
+          {isLive && (requests.data?.requests.length ?? 0) > 0 && (
+            <Card className="p-4 sm:p-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-lg font-bold">Waiting for a demo</h2>
+                <Link to="/seller/requests" className="text-sm font-medium text-navy hover:underline">
+                  All requests
+                </Link>
+              </div>
+              <p className="text-sm text-muted">They asked while you were closed. Invite them in — they'll get a pop-up to join your queue.</p>
+              <ul className="mt-3 divide-y divide-line">
+                {requests.data.requests.map((r) => (
+                  <li key={r.id} className="flex items-center gap-3 py-2.5">
+                    <ProductImage src={r.product?.images?.[0]} alt="" w={120} className="size-12 shrink-0 rounded-btn" />
+                    <div className="min-w-0 flex-1 text-sm">
+                      <p className="font-medium text-ink">
+                        {r.buyer?.name ?? 'A shopper'} · <span className="text-navy">{r.product?.name ?? r.departmentName ?? 'your shop'}</span>
+                      </p>
+                      {r.message && <p className="truncate text-muted">“{r.message}”</p>}
+                    </div>
+                    <InviteButton
+                      request={r}
+                      isLive
+                      className="w-40 shrink-0"
+                      onInvited={(u) =>
+                        requests.setData((d) => ({ ...d, requests: d.requests.map((x) => (x.id === r.id ? { ...x, invitedAt: u.invitedAt, status: u.status } : x)) }))
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           {/* Shelf */}
           <Card className="p-4 sm:p-5">
             <div className="flex items-baseline justify-between gap-3">
@@ -350,7 +409,8 @@ export function LiveControl() {
                 <Card className="border-orange/40 bg-orange-soft p-5 hover:border-orange">
                   <p className="font-display text-2xl font-bold text-navy">{openRequests}</p>
                   <p className="text-sm text-ink">
-                    {openRequests === 1 ? 'shopper is' : 'shoppers are'} waiting for a demonstration. Show their products when you go live.
+                    {openRequests === 1 ? 'shopper is' : 'shoppers are'} waiting for a demonstration. Go live, then invite them in.
+                    {inviteId && ' Your invite will be sent as soon as you go live.'}
                   </p>
                 </Card>
               </Link>

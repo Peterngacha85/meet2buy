@@ -22,9 +22,12 @@ export function NotificationCenter() {
     }
     refreshBadges();
     const socket = connectSocket();
-    socket.on('connect', refreshBadges); // catch up after a reconnect
+    socket.on('connect', () => {
+      refreshBadges(); // catch up after a reconnect
+      socket.emit('notify:sync'); // demo invites sent while we were away
+    });
     socket.on('notify', (n) => {
-      push(n);
+      if (push(n) === null) return; // already showing, or dismissed earlier
       chime();
       systemNotify(n.title, n.body);
       refreshBadges();
@@ -58,7 +61,9 @@ function Toast({ toast, onClose }) {
   return (
     <div
       role="status"
-      className="pointer-events-auto flex w-full max-w-sm animate-rise items-start gap-3 rounded-card border border-line bg-white p-3.5 shadow-[0_16px_40px_-16px_rgb(11_31_92/0.45)]"
+      className={`pointer-events-auto flex w-full max-w-sm animate-rise items-start gap-3 rounded-card border bg-white p-3.5 shadow-[0_16px_40px_-16px_rgb(11_31_92/0.45)] ${
+        toast.sticky ? 'border-orange ring-2 ring-orange/30' : 'border-line'
+      }`}
     >
       <span className="grid size-9 shrink-0 place-items-center rounded-full bg-orange text-navy">
         <Bell className="size-4.5" aria-hidden />

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ArrowLeft, Clock, Loader2, Radio, Store as StoreIcon, Video, Volume2, WifiOff } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
@@ -73,6 +73,24 @@ function Room({ store, session, products }) {
     setCamWanted(false);
     setCamera(true).catch(() => setCounterError('Could not turn on your camera. The seller can still hear you.'));
   }, [atCounter, camWanted, lk.local.mic, lk.local.camera, setCamera]);
+
+  // Came from a demo invite (?ask=<productId>): open "Join the queue" with that product, once.
+  const [params, setParams] = useSearchParams();
+  const askParam = params.get('ask');
+  useEffect(() => {
+    if (askParam === null || rt.status !== 'live') return;
+    setParams((p) => {
+      p.delete('ask');
+      return p;
+    }, { replace: true });
+    if (!rt.canChat) {
+      navigate(`/login?next=${encodeURIComponent(`/shop/${store.slug}/live?ask=${askParam}`)}`);
+      return;
+    }
+    if (rt.myQueue.status) return; // already waiting or at the counter
+    askNotificationPermission();
+    setJoining({ product: products.find((p) => p.id === askParam) ?? null });
+  }, [askParam, rt.status, rt.canChat, rt.myQueue.status, products, setParams, navigate, store.slug]);
 
   // "Someone just bought…" for a few seconds over the video.
   useEffect(() => {
