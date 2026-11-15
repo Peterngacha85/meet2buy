@@ -5,6 +5,7 @@ import { Product } from '../models/Product.js';
 import { PresentationRequest } from '../models/PresentationRequest.js';
 import { resolveDepartments } from '../services/storeService.js';
 import { endStoreSession } from '../services/roomService.js';
+import { badgeCounts, notifyAdmins } from '../services/notifyService.js';
 import { isGoogleConfigured, verifyGoogleIdToken } from '../services/google.js';
 import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
@@ -50,6 +51,7 @@ export async function registerSeller(req, res) {
   }
 
   setAuthCookie(res, user);
+  notifyAdmins({ type: 'seller_review', title: 'New shop waiting for review', body: store.name, link: '/admin/sellers' });
   ok(res, { user, store: privateStore(store) }, 201);
 }
 
@@ -151,6 +153,11 @@ export async function me(req, res) {
   // Tells the account page whether to confirm with a password (Google-only and guest accounts have none).
   const hasPassword = Boolean(await User.exists({ _id: req.user._id, password: { $exists: true, $ne: null } }));
   ok(res, { user: req.user, store, hasPassword });
+}
+
+// GET /api/auth/badges — sidebar counts (new demo requests, orders to ship, shops to review)
+export async function badges(req, res) {
+  ok(res, { badges: await badgeCounts(req.user) });
 }
 
 // PATCH /api/auth/me

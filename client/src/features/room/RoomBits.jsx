@@ -17,7 +17,7 @@ export function LiveBadge({ viewers }) {
 }
 
 /** The product the seller is holding up: slides up over the bottom of the video. */
-export function PinnedProduct({ product, onOpen, onClear, className = '' }) {
+export function PinnedProduct({ product, onOpen, onClear, onBuy, className = '' }) {
   if (!product) return null;
   return (
     <div
@@ -30,6 +30,15 @@ export function PinnedProduct({ product, onOpen, onClear, className = '' }) {
         <p className="truncate font-semibold text-ink">{product.name}</p>
         <p className="font-display font-bold text-navy">{kes(product.price)}</p>
       </button>
+      {onBuy && product.stock > 0 && (
+        <button
+          type="button"
+          onClick={() => onBuy(product)}
+          className="shrink-0 rounded-btn bg-orange px-3.5 py-2 text-sm font-bold text-navy hover:bg-orange-dark"
+        >
+          Buy
+        </button>
+      )}
       {onClear && (
         <button
           type="button"

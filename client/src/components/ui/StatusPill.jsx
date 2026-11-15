@@ -9,6 +9,12 @@ const styles = {
   suspended: 'bg-[#FDE8E7] text-danger',
   rejected: 'bg-[#FDE8E7] text-danger',
   processing: 'bg-navy-soft text-navy',
+  awaiting_payment: 'bg-[#FFF4D6] text-[#8A6100]',
+  on_hold: 'bg-[#FFF4D6] text-[#8A6100]',
+  payment_failed: 'bg-[#FDE8E7] text-danger',
+  cancelled: 'bg-bg-soft text-muted',
+  shipped: 'bg-navy-soft text-navy',
+  delivered: 'bg-[#E6F4EA] text-success',
 };
 
 export function StatusPill({ status, children }) {

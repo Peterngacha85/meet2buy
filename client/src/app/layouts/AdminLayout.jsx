@@ -3,7 +3,7 @@ import { DashboardLayout } from './DashboardLayout.jsx';
 
 const items = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/admin/sellers', label: 'Sellers', icon: Store },
+  { to: '/admin/sellers', label: 'Sellers', icon: Store, badgeKey: 'pendingSellers' },
   { to: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/admin/payouts', label: 'Payouts', icon: Wallet },
   { to: '/admin/live-rooms', label: 'Live rooms', icon: Radio },

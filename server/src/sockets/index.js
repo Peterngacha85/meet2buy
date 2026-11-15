@@ -6,6 +6,7 @@ import { AUTH_COOKIE, verifyToken } from '../utils/token.js';
 import { logger } from '../utils/logger.js';
 import { setIo } from './io.js';
 import { registerRoomHandlers } from './roomHandlers.js';
+import { ADMINS_ROOM } from '../services/notifyService.js';
 
 /**
  * Socket.io bootstrap. Authenticates with the same JWT cookie as the REST API.
@@ -34,6 +35,7 @@ export function initSockets(httpServer) {
   io.on('connection', (socket) => {
     const { user } = socket.data;
     if (user) socket.join(`user:${user.id}`);
+    if (user?.role === 'admin') socket.join(ADMINS_ROOM);
     logger.info(`socket connected ${socket.id} (${user ? `${user.role} ${user.id}` : 'guest'})`);
 
     registerRoomHandlers(socket);

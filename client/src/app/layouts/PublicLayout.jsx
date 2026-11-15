@@ -1,9 +1,10 @@
 ﻿import { Link, NavLink, Outlet, useNavigate } from 'react-router';
-import { LogOut, Store, User } from 'lucide-react';
+import { LogOut, Receipt, Store, User } from 'lucide-react';
 import { FullLogo, Logo } from '../../components/Logo.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { homeForRole } from '../../store/authStore.js';
+import { NotificationCenter } from '../../features/notify/NotificationCenter.jsx';
 
 function AccountMenu() {
   const { user, status, logout } = useAuth();
@@ -30,6 +31,12 @@ function AccountMenu() {
         <Button to={homeForRole(user.role)} variant="ghost" size="sm">
           <Store className="size-4" aria-hidden />
           <span className="hidden sm:inline">{user.role === 'admin' ? 'Admin' : 'My store'}</span>
+        </Button>
+      )}
+      {user.role === 'buyer' && (
+        <Button to="/orders" variant="ghost" size="sm" aria-label="My orders">
+          <Receipt className="size-4" aria-hidden />
+          <span className="hidden lg:inline">Orders</span>
         </Button>
       )}
       <Button to="/account" variant="ghost" size="sm" aria-label="My account">
@@ -82,6 +89,7 @@ export function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+      <NotificationCenter />
 
       <footer className="bg-navy-dark text-white/80">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between">

@@ -46,6 +46,25 @@ const schema = z.object({
   LIVEKIT_API_SECRET: z.string().optional(),
   // A live session ends by itself if the seller has been disconnected this long.
   SELLER_GRACE_SECONDS: z.coerce.number().int().positive().default(120),
+
+  // M-Pesa Daraja (doc 08). Buyers pay by STK push; sellers are paid by B2B.
+  // Callbacks go to API_PUBLIC_URL, so it must be the public https URL of this API (e.g. the Render URL).
+  MPESA_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
+  MPESA_CONSUMER_KEY: z.string().optional(),
+  MPESA_CONSUMER_SECRET: z.string().optional(),
+  MPESA_SHORTCODE: z.string().optional(), // Paybill that receives buyer payments (sandbox: 174379)
+  MPESA_PASSKEY: z.string().optional(),
+  MPESA_B2B_SHORTCODE: z.string().optional(), // shortcode that pays sellers; defaults to MPESA_SHORTCODE
+  MPESA_INITIATOR_NAME: z.string().optional(),
+  MPESA_SECURITY_CREDENTIAL: z.string().optional(),
+  // Secret added to our callback URLs so only Safaricom (who we gave the URL) can reach them.
+  MPESA_CALLBACK_TOKEN: z.string().optional(),
+  // Until the Daraja keys arrive: fake STK prompts (the buyer taps Pay/Cancel on screen) and fake B2B payouts.
+  // No real money moves. Must be switched off once real keys are added.
+  MPESA_SIMULATE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 }).refine((e) => Boolean(e.ADMIN_EMAIL) === Boolean(e.ADMIN_PASSWORD), {
   message: 'Set both ADMIN_EMAIL and ADMIN_PASSWORD, or neither',
   path: ['ADMIN_EMAIL'],

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Video } from 'lucide-react';
+import { ShoppingBag, Video } from 'lucide-react';
 import { Dialog } from '../../components/ui/Dialog.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { ProductImage } from './ProductCard.jsx';
@@ -9,6 +9,7 @@ export function ProductDialog({
   product,
   onClose,
   onDemo,
+  onBuy = null,
   demoLabel = 'Get a live demonstration',
   demoText = 'See it demonstrated live by a salesperson, ask anything, then pay with M-Pesa.',
 }) {
@@ -56,7 +57,12 @@ export function ProductDialog({
             <div className="mt-6 rounded-card bg-orange-soft p-4 sm:mt-auto">
               <p className="font-display font-bold text-navy">Ready to buy?</p>
               <p className="mb-3 text-sm text-ink">{demoText}</p>
-              <Button variant="accent" className="w-full" onClick={() => onDemo(product)} disabled={!product.stock}>
+              {onBuy && (
+                <Button variant="primary" className="mb-2 w-full" onClick={() => onBuy(product)} disabled={!product.stock}>
+                  <ShoppingBag className="size-4" aria-hidden /> Buy now · {kes(product.price)}
+                </Button>
+              )}
+              <Button variant={onBuy ? 'outline' : 'accent'} className="w-full" onClick={() => onDemo(product)} disabled={!product.stock}>
                 <Video className="size-4" aria-hidden /> {demoLabel}
               </Button>
             </div>

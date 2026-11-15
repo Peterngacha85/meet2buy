@@ -21,6 +21,7 @@ import {
   skip,
   waitingCount,
 } from '../services/queueService.js';
+import { createOffer, declineOffer, openOffersFor } from '../services/offerService.js';
 import { addPresence, removePresence, sellerSocketCount, sessionsOf, userPresent } from './presence.js';
 import { sellerRoom, sessionRoom } from './io.js';
 import { logger } from '../utils/logger.js';
@@ -100,7 +101,9 @@ export function registerRoomHandlers(socket) {
         queueLength: await waitingCount(session._id),
         // The seller gets the whole queue; a logged-in buyer gets their own place.
         ...(isSeller ? { queue: await queueList(session._id) } : {}),
-        ...(!isSeller && user ? { myQueue: await myQueueState(session._id, user.id) } : {}),
+        ...(!isSeller && user
+          ? { myQueue: await myQueueState(session._id, user.id), myOffers: await openOffersFor(session._id, user._id) }
+          : {}),
       };
       socket.emit('room:state', state);
       return state;
@@ -172,6 +175,36 @@ export function registerRoomHandlers(socket) {
       const sessionId = sessionIdFrom(payload);
       requireSeller(sessionId);
       await endCounter(sessionId);
+    }),
+  );
+
+  // ---- Offers (doc 07): the seller sends a custom price; the buyer pays it at checkout or declines ----
+
+  socket.on(
+    'offer:create',
+    handler(socket, async (payload) => {
+      const sessionId = sessionIdFrom(payload);
+      requireSeller(sessionId);
+      if (!mongoose.isValidObjectId(payload.buyerId) || !mongoose.isValidObjectId(payload.productId)) {
+        throw new SocketError('Choose a shopper and a product');
+      }
+      const offer = await createOffer(sessionId, {
+        buyerId: payload.buyerId,
+        productId: payload.productId,
+        variant: payload.variant,
+        quantity: Number(payload.quantity),
+        price: Number(payload.price),
+      });
+      return { offer };
+    }),
+  );
+
+  socket.on(
+    'offer:decline',
+    handler(socket, async (payload) => {
+      if (!user) throw new SocketError('Log in first');
+      if (!mongoose.isValidObjectId(payload.offerId)) throw new SocketError('Invalid offer');
+      await declineOffer(user, payload.offerId);
     }),
   );
 

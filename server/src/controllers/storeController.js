@@ -7,6 +7,7 @@ import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
 import { escapeRegex } from '../utils/slug.js';
 import { viewerCount } from '../sockets/presence.js';
+import { notifyAdmins, notifyUser } from '../services/notifyService.js';
 
 const PAGE_SIZE = 60;
 
@@ -116,6 +117,7 @@ export async function resubmit(req, res) {
   req.store.status = 'pending';
   req.store.statusChangedAt = new Date();
   await req.store.save();
+  notifyAdmins({ type: 'seller_review', title: 'Shop sent back for review', body: req.store.name, link: '/admin/sellers' });
   ok(res, { store: privateStore(req.store) });
 }
 
@@ -145,6 +147,13 @@ export async function createPresentationRequest(req, res) {
   }
 
   const request = await PresentationRequest.create({ store: store._id, buyer: req.user._id, product, department, message });
+  const productName = product ? (await Product.findById(product).select('name'))?.name : null;
+  notifyUser(store.owner, {
+    type: 'demo_request',
+    title: 'New demo request',
+    body: `${req.user.name.split(' ')[0]} wants to see ${productName ?? 'your products'}${message ? `: “${message.slice(0, 80)}”` : ''}`,
+    link: '/seller/requests',
+  });
   ok(res, { request }, 201);
 }
 

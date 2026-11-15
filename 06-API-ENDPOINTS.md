@@ -66,6 +66,9 @@ Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 se
 | GET | `/mine` | 👤 | Buyer's orders |
 | GET | `/store` | 🛍 | Seller's orders |
 | PATCH | `/:id/fulfilment` | 🛍 | Mark shipped / delivered |
+| POST | `/:id/simulate` | 👤 | Only with `MPESA_SIMULATE=true`: `{ action: pay \| cancel }` stands in for the PIN prompt |
+
+Also: `GET /api/auth/badges` (👤) → sidebar counts `{ requests, orders }` for sellers, `{ pendingSellers }` for admins. Live updates arrive as the Socket.io `notify` event `{ type, title, body, link, action? }`.
 
 ## M-Pesa callbacks — `/api/mpesa` (called by Safaricom, no auth)
 | Method | Path | Description |

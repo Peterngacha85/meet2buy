@@ -10,7 +10,10 @@ import { ProductDialog } from '../../features/mall/ProductDialog.jsx';
 import { ChatPanel } from '../../features/room/ChatPanel.jsx';
 import { TrackAudio, TrackVideo } from '../../features/room/Media.jsx';
 import { LiveBadge, PinnedProduct, PresenceBar } from '../../features/room/RoomBits.jsx';
-import { BuyerQueueCard, CounterTile, JoinQueueDialog } from '../../features/room/Queue.jsx';
+import { BuyerQueueCard, CounterTile, JoinQueueDialog, TurnModal } from '../../features/room/Queue.jsx';
+import { CheckoutDialog } from '../../features/commerce/CheckoutDialog.jsx';
+import { OfferCard } from '../../features/commerce/Offers.jsx';
+import { askNotificationPermission, chime, flashTitle, systemNotify } from '../../store/notifyStore.js';
 import { mediaErrorMessage, useLiveKit } from '../../features/room/useLiveKit.js';
 import { useRoomSocket } from '../../features/room/useRoomSocket.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -42,25 +45,48 @@ function Room({ store, session, products }) {
   const [tab, setTab] = useState('chat');
   const [viewing, setViewing] = useState(null);
   const [joining, setJoining] = useState(null); // { product } while the join dialog is open
+  const [buying, setBuying] = useState(null); // { product } | { offer } while checkout is open
+  const [celebrate, setCelebrate] = useState(null);
 
-  // ---- The counter (doc 07 §4): when called up, turn the buyer's mic on ----
+  // ---- The counter (doc 07 §4): when called up, ask first ("It's your turn"), then turn the mic on ----
   const atCounter = rt.myQueue.status === 'at_counter';
   const [micWanted, setMicWanted] = useState(false);
+  const [camWanted, setCamWanted] = useState(false);
+  const [turnOpen, setTurnOpen] = useState(false);
   const [counterError, setCounterError] = useState('');
   const usedCounterToken = useRef(false);
-  const { setMic, stopPublishing } = lk;
+  const { setMic, setCamera, stopPublishing } = lk;
   const reloadToken = tokenReq.reload;
 
   useEffect(() => {
-    if (rt.turn) {
-      setMicWanted(true);
-      setCounterError('');
-    }
-  }, [rt.turn]);
+    if (!rt.turn) return;
+    setCounterError('');
+    setTurnOpen(true);
+    chime();
+    systemNotify("It's your turn at the counter", `${store.name} is ready for you. Open Meet2buy to join.`);
+    flashTitle('🔔 Your turn!');
+  }, [rt.turn, store.name]);
+
+  // Camera too, once the mic is on (if they chose it).
+  useEffect(() => {
+    if (!atCounter || !camWanted || !lk.local.mic || lk.local.camera) return;
+    setCamWanted(false);
+    setCamera(true).catch(() => setCounterError('Could not turn on your camera. The seller can still hear you.'));
+  }, [atCounter, camWanted, lk.local.mic, lk.local.camera, setCamera]);
+
+  // "Someone just bought…" for a few seconds over the video.
+  useEffect(() => {
+    if (!rt.celebration) return undefined;
+    setCelebrate(rt.celebration);
+    const t = setTimeout(() => setCelebrate(null), 5000);
+    return () => clearTimeout(t);
+  }, [rt.celebration]);
 
   useEffect(() => {
     if (atCounter) return;
+    setTurnOpen(false);
     setMicWanted(false);
+    setCamWanted(false);
     stopPublishing();
     // Reconnected with a counter token earlier: go back to a watch-only token.
     if (usedCounterToken.current) {
@@ -113,7 +139,13 @@ function Room({ store, session, products }) {
   const openJoin = (product) => {
     setViewing(null);
     if (!rt.canChat) return loginNext();
+    askNotificationPermission(); // so "your turn" can reach them if they switch tabs
     setJoining({ product });
+  };
+  const openBuy = (product) => {
+    setViewing(null);
+    if (!rt.canChat) return loginNext();
+    setBuying({ product });
   };
   const queueAhead = rt.myQueue.status === 'waiting' ? rt.myQueue.position - 1 : rt.queueLength;
   const otherAtCounter = !atCounter && lk.counter;
@@ -186,9 +218,17 @@ function Room({ store, session, products }) {
                   <Volume2 className="size-5" aria-hidden /> Tap to hear the seller
                 </button>
               )}
+              {celebrate && (
+                <div className="absolute inset-x-0 top-12 flex justify-center px-3">
+                  <p key={celebrate.at} className="animate-rise rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-navy shadow-lg">
+                    🎉 Someone just bought {celebrate.productName}
+                  </p>
+                </div>
+              )}
               <PinnedProduct
                 product={rt.pinned}
                 onOpen={setViewing}
+                onBuy={openBuy}
                 className="absolute inset-x-3 bottom-3 sm:right-auto sm:w-[22rem]"
               />
             </div>
@@ -210,8 +250,11 @@ function Room({ store, session, products }) {
             <PresenceBar presence={rt.presence} />
           </div>
 
-          {/* Queue & counter */}
-          <div className="px-4 pt-3 lg:px-0 lg:pt-0">
+          {/* Offers from the seller, then the queue & counter */}
+          <div className="space-y-3 px-4 pt-3 lg:px-0 lg:pt-0">
+            {rt.offers.map((o) => (
+              <OfferCard key={o.id} offer={o} onPay={(offer) => setBuying({ offer })} onDecline={rt.declineOffer} />
+            ))}
             <BuyerQueueCard
               rt={rt}
               lk={lk}
@@ -277,6 +320,7 @@ function Room({ store, session, products }) {
         product={viewing}
         onClose={() => setViewing(null)}
         onDemo={openJoin}
+        onBuy={openBuy}
         demoLabel="Ask to see this"
         demoText="Join the queue for the counter: the seller shows it to you up close and you can ask anything, then pay with M-Pesa."
       />
@@ -287,6 +331,21 @@ function Room({ store, session, products }) {
         onClose={() => setJoining(null)}
         onJoin={rt.joinQueue}
       />
+      <TurnModal
+        open={turnOpen && atCounter}
+        storeName={store.name}
+        product={rt.myQueue.product}
+        onJoin={async ({ camera }) => {
+          setTurnOpen(false);
+          setCamWanted(camera);
+          setMicWanted(true);
+        }}
+        onDecline={async () => {
+          setTurnOpen(false);
+          await rt.leaveQueue();
+        }}
+      />
+      <CheckoutDialog item={buying} sessionId={session.id} payment={rt.payment} onClose={() => setBuying(null)} />
     </div>
   );
 }

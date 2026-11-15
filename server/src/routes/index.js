@@ -9,6 +9,8 @@ import storeRoutes from './storeRoutes.js';
 import productRoutes from './productRoutes.js';
 import adminRoutes from './adminRoutes.js';
 import roomRoutes from './roomRoutes.js';
+import orderRoutes from './orderRoutes.js';
+import mpesaRoutes from './mpesaRoutes.js';
 
 const router = Router();
 
@@ -19,9 +21,7 @@ router.use('/products', productRoutes);
 router.post('/uploads/signature', protect, allow('seller', 'admin'), validate(uploadSignatureSchema), uploads.signature);
 router.use('/admin', adminRoutes);
 router.use('/rooms', roomRoutes);
-
-// Mounted in later sprints:
-// router.use('/orders', orderRoutes);
-// router.use('/mpesa', mpesaRoutes);
+router.use('/orders', orderRoutes);
+router.use('/mpesa', mpesaRoutes);
 
 export default router;

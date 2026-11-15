@@ -4,6 +4,8 @@ import { ChatMessage, CHAT_MAX_LENGTH, publicMessage } from '../models/ChatMessa
 import { Store } from '../models/Store.js';
 import { Product } from '../models/Product.js';
 import { QueueEntry } from '../models/QueueEntry.js';
+import { PresentationRequest } from '../models/PresentationRequest.js';
+import { notifyUser } from './notifyService.js';
 import { AppError } from '../utils/AppError.js';
 import { maskContacts } from '../utils/maskContacts.js';
 import { logger } from '../utils/logger.js';
@@ -43,9 +45,26 @@ export async function startSession(store) {
     throw err;
   }
   await Store.updateOne({ _id: store._id }, { isLive: true, currentSession: session._id });
+  await notifyDemoRequesters(store).catch((err) => logger.warn(`demo requester notify failed: ${err.message}`));
   // The seller may already be connected to the socket from before; they reconnect via room:join.
   armSellerGrace(session._id.toString());
   return session;
+}
+
+/** Shoppers who asked for a demo while the shop was closed hear the moment it opens. */
+async function notifyDemoRequesters(store) {
+  const requests = await PresentationRequest.find({ store: store._id, status: 'open' }).populate('product', 'name');
+  const byBuyer = new Map();
+  for (const r of requests) if (!byBuyer.has(r.buyer.toString())) byBuyer.set(r.buyer.toString(), r);
+  for (const [buyerId, r] of byBuyer) {
+    notifyUser(buyerId, {
+      type: 'shop_live',
+      title: `${store.name} is live now`,
+      body: r.product?.name ? `Walk in and see the ${r.product.name} you asked about.` : 'Walk in for the demonstration you asked for.',
+      link: `/shop/${store.slug}/live`,
+      action: 'Walk in',
+    });
+  }
 }
 
 /** End a session once (later calls are no-ops). Tells everyone in the room and closes the LiveKit room. */

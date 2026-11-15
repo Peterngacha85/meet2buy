@@ -3,6 +3,8 @@ import { NavLink, Outlet, useNavigate } from 'react-router';
 import { LogOut, Menu, X } from 'lucide-react';
 import { LogoMark, Wordmark } from '../../components/Logo.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useNotifyStore } from '../../store/notifyStore.js';
+import { NotificationCenter } from '../../features/notify/NotificationCenter.jsx';
 
 /**
  * Shared shell for seller and admin dashboards (doc 03 §6):
@@ -12,10 +14,12 @@ export function DashboardLayout({ title, items, action }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const badges = useNotifyStore((s) => s.badges);
+  const totalBadges = items.reduce((n, i) => n + (i.badgeKey ? badges[i.badgeKey] ?? 0 : 0), 0);
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1 px-3">
-      {items.map(({ to, label, icon: Icon, end }) => (
+      {items.map(({ to, label, icon: Icon, end, badgeKey }) => (
         <NavLink
           key={to}
           to={to}
@@ -32,6 +36,12 @@ export function DashboardLayout({ title, items, action }) {
               {isActive && <span className="absolute inset-y-1.5 left-0 w-1 rounded-full bg-orange" aria-hidden />}
               <Icon className="size-4.5" aria-hidden />
               {label}
+              {badgeKey && badges[badgeKey] > 0 && (
+                <span className="ml-auto min-w-5 rounded-full bg-orange px-1.5 py-0.5 text-center text-[11px] font-bold leading-none text-navy">
+                  {badges[badgeKey] > 99 ? '99+' : badges[badgeKey]}
+                  <span className="sr-only"> new</span>
+                </span>
+              )}
             </>
           )}
         </NavLink>
@@ -82,8 +92,9 @@ export function DashboardLayout({ title, items, action }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center gap-3 border-b border-line bg-white px-4 lg:hidden">
-          <button onClick={() => setOpen(true)} aria-label="Open menu" className="text-navy">
+          <button onClick={() => setOpen(true)} aria-label="Open menu" className="relative text-navy">
             <Menu className="size-6" />
+            {totalBadges > 0 && <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-orange ring-2 ring-white" aria-label="New notifications" />}
           </button>
           <LogoMark className="h-7" />
           <Wordmark className="text-lg" />
@@ -91,6 +102,7 @@ export function DashboardLayout({ title, items, action }) {
         <main className="flex-1 p-4 sm:p-8">
           <Outlet />
         </main>
+        <NotificationCenter />
       </div>
     </div>
   );

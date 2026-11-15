@@ -8,6 +8,9 @@ import { logger } from './src/utils/logger.js';
 import { User } from './src/models/User.js';
 import { RoomSession } from './src/models/RoomSession.js';
 import { QueueEntry } from './src/models/QueueEntry.js';
+import { Offer, Order, Payment, Payout } from './src/models/Commerce.js';
+import { isSimulated, isStkConfigured } from './src/services/mpesa.js';
+import { startSweeper } from './src/services/orderService.js';
 import { isLiveKitConfigured } from './src/services/livekit.js';
 import { resumeLiveSessions } from './src/services/roomService.js';
 
@@ -17,8 +20,12 @@ async function start() {
   await User.syncIndexes();
   await RoomSession.syncIndexes();
   await QueueEntry.syncIndexes();
+  await Promise.all([Order, Payment, Payout, Offer].map((m) => m.syncIndexes()));
   await ensureAdminFromEnv();
   if (!isLiveKitConfigured()) logger.warn('LiveKit keys not set: sellers cannot go live');
+  if (isSimulated()) logger.warn('MPESA_SIMULATE=true: payments are SIMULATED, no real money moves');
+  else if (!isStkConfigured()) logger.warn('M-Pesa keys not set: checkout is switched off');
+  startSweeper();
 
   const app = createApp();
   const server = http.createServer(app);

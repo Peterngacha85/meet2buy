@@ -6,8 +6,8 @@ const items = [
   { to: '/seller', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/seller/store', label: 'Shop profile', icon: Store },
   { to: '/seller/products', label: 'Products', icon: Package },
-  { to: '/seller/requests', label: 'Demo requests', icon: MessageSquareText },
-  { to: '/seller/orders', label: 'Orders', icon: Receipt },
+  { to: '/seller/requests', label: 'Demo requests', icon: MessageSquareText, badgeKey: 'requests' },
+  { to: '/seller/orders', label: 'Orders', icon: Receipt, badgeKey: 'orders' },
   { to: '/seller/payouts', label: 'Payout settings', icon: Wallet },
 ];
 

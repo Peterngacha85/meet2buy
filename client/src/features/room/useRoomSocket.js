@@ -17,6 +17,11 @@ const initial = {
   queue: [], // seller only: active entries, oldest first
   myQueue: { status: null }, // buyer: { status: 'waiting', position, total, product } | { status: 'at_counter' } | { status: null, notice? }
   turn: null, // buyer: { granted, timeLimitMinutes, at } — set when called to the counter
+  // Sales (doc 07): offers, payment results and "someone just bought"
+  offers: [], // buyer: open offers from the seller, newest first
+  sentOffers: {}, // seller: offerId -> offer (with live status)
+  payment: null, // buyer: last payment:status { orderId, status, message, receipt }
+  celebration: null, // { productName, at }
 };
 
 /**
@@ -52,8 +57,24 @@ export function useRoomSocket(sessionId) {
         queueLength: st.queueLength ?? 0,
         queue: st.queue ?? [],
         myQueue: st.myQueue ?? { status: null },
+        offers: st.myOffers ?? [],
       }),
     );
+    socket.on('offer:received', (offer) =>
+      mine({ sessionId: offer.session }) && patch((s) => ({ offers: [offer, ...s.offers.filter((o) => o.id !== offer.id)] })),
+    );
+    socket.on('offer:updated', ({ offerId, status, offer }) =>
+      patch((s) => ({
+        offers: ['pending', 'in_checkout'].includes(status)
+          ? s.offers.map((o) => (o.id === offerId ? { ...o, status } : o))
+          : s.offers.filter((o) => o.id !== offerId),
+        sentOffers: s.isSeller
+          ? { ...s.sentOffers, [offerId]: { ...(s.sentOffers[offerId] ?? offer ?? {}), status } }
+          : s.sentOffers,
+      })),
+    );
+    socket.on('payment:status', (payment) => patch({ payment: { ...payment, at: Date.now() } }));
+    socket.on('sale:celebration', (c) => patch({ celebration: { ...c, at: Date.now() } }));
     socket.on('presence:update', (presence) => patch({ presence }));
     socket.on('chat:message', (m) =>
       patch((s) => (s.messages.some((x) => x.id === m.id) ? {} : { messages: [...s.messages, m].slice(-MAX_MESSAGES) })),
@@ -116,5 +137,16 @@ export function useRoomSocket(sessionId) {
   const endCounter = useCallback(() => emit('queue:endCounter'), [emit]);
   const skip = useCallback((entryId) => emit('queue:skip', { entryId }), [emit]);
 
-  return { ...state, send, pin, joinQueue, leaveQueue, callNext, endCounter, skip };
+  const sendOffer = useCallback(async (offer) => {
+    const res = await emit('offer:create', offer);
+    if (res.ok) setState((s) => ({ ...s, sentOffers: { ...s.sentOffers, [res.offer.id]: res.offer } }));
+    return res;
+  }, [emit]);
+  const declineOffer = useCallback(async (offerId) => {
+    const res = await emit('offer:decline', { offerId });
+    if (res.ok) setState((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== offerId) }));
+    return res;
+  }, [emit]);
+
+  return { ...state, send, pin, joinQueue, leaveQueue, callNext, endCounter, skip, sendOffer, declineOffer };
 }

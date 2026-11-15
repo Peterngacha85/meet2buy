@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
-import { Camera, CameraOff, Clock, Hand, LogOut, Mic, MicOff, PhoneCall, SkipForward, UserRound } from 'lucide-react';
+import { Camera, CameraOff, Clock, Hand, LogOut, Mic, MicOff, PhoneCall, SkipForward, Tag, UserRound } from 'lucide-react';
+import { OfferDialog } from '../commerce/Offers.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { Dialog } from '../../components/ui/Dialog.jsx';
@@ -210,14 +211,28 @@ function WaitedFor({ since }) {
 }
 
 /** Seller's counter: who is up, their timer, and the waiting line (doc 07 §4). */
-export function SellerQueueCard({ rt }) {
+const OFFER_STATUS = {
+  pending: ['Offer sent — waiting for them to pay', 'text-muted'],
+  in_checkout: ['Paying with M-Pesa now…', 'text-orange-ink'],
+  paid: ['Paid ✓', 'text-success'],
+  declined: ['They declined the offer', 'text-danger'],
+  expired: ['Offer expired', 'text-muted'],
+};
+
+export function SellerQueueCard({ rt, products = [] }) {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [offering, setOffering] = useState(false);
   const current = rt.queue.find((e) => e.status === 'at_counter');
   const waiting = rt.queue.filter((e) => e.status === 'waiting');
   const elapsed = useElapsedSeconds(rt.counter?.calledAt ?? null);
   const limit = (rt.counter?.timeLimitMinutes ?? 5) * 60;
   const timesUp = elapsed != null && elapsed >= limit;
+  const lastOffer = current
+    ? Object.values(rt.sentOffers)
+        .filter((o) => o.buyer === current.buyer.id)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
+    : null;
 
   const run = async (key, fn) => {
     setBusy(key);
@@ -255,6 +270,14 @@ export function SellerQueueCard({ rt }) {
             )}
             {current.note && <p className="mt-2 rounded-btn bg-white/70 px-2.5 py-1.5 text-sm text-ink">“{current.note}”</p>}
             <ProductChip product={current.product} label="Wants to see" />
+            {lastOffer && (
+              <p className={`mt-2 text-sm font-medium ${OFFER_STATUS[lastOffer.status]?.[1] ?? 'text-muted'}`}>
+                {kes(lastOffer.price)} for {lastOffer.product?.name}: {OFFER_STATUS[lastOffer.status]?.[0] ?? lastOffer.status}
+              </p>
+            )}
+            <Button size="sm" variant="primary" className="mt-3" onClick={() => setOffering(true)} disabled={!products.length}>
+              <Tag className="size-4" aria-hidden /> Send an offer
+            </Button>
           </>
         ) : (
           <p className="text-sm text-muted">Nobody at the counter. Call the next shopper when you're ready.</p>
@@ -313,7 +336,56 @@ export function SellerQueueCard({ rt }) {
           Shoppers tap “Join the queue” or “Ask to see this” on a product. They'll line up here.
         </p>
       )}
+      <OfferDialog
+        open={offering && Boolean(current)}
+        buyer={current?.buyer}
+        products={products}
+        defaultProductId={current?.product?.id}
+        onClose={() => setOffering(false)}
+        onSend={rt.sendOffer}
+      />
     </Card>
+  );
+}
+
+/**
+ * "It's your turn" — the buyer was called to the counter. Nothing turns on until they choose:
+ * microphone only, or microphone + camera (or they step away).
+ */
+export function TurnModal({ open, storeName, product, onJoin, onDecline }) {
+  const [busy, setBusy] = useState('');
+  useEffect(() => {
+    if (open) setBusy('');
+  }, [open]);
+  const choose = async (key, fn) => {
+    setBusy(key);
+    await fn();
+    setBusy('');
+  };
+  return (
+    <Dialog open={open} onClose={() => {}} dismissable={false} title="It's your turn!">
+      <div className="text-center">
+        <span className="mx-auto grid size-16 animate-live-pulse place-items-center rounded-full bg-orange text-navy">
+          <PhoneCall className="size-8" aria-hidden />
+        </span>
+        <p className="mt-4 text-ink">
+          The {storeName} salesperson is ready for you at the counter. Join to talk to them
+          {product ? ` about the ${product.name}` : ''} — the room will hear you too.
+        </p>
+        <div className="mt-6 space-y-2">
+          <Button variant="accent" size="lg" className="w-full" onClick={() => choose('mic', () => onJoin({ camera: false }))} loading={busy === 'mic'} disabled={Boolean(busy)}>
+            {busy !== 'mic' && <Mic className="size-5" aria-hidden />} Join with microphone
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => choose('cam', () => onJoin({ camera: true }))} loading={busy === 'cam'} disabled={Boolean(busy)}>
+            {busy !== 'cam' && <Camera className="size-4" aria-hidden />} Join with microphone + camera
+          </Button>
+          <Button variant="ghost" className="w-full" onClick={() => choose('no', onDecline)} disabled={Boolean(busy)}>
+            Not now — give my turn to the next shopper
+          </Button>
+        </div>
+        <p className="mt-3 text-xs text-muted">Your browser will ask to use your microphone{' '}— tap Allow.</p>
+      </div>
+    </Dialog>
   );
 }
 

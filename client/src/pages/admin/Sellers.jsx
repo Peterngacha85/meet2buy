@@ -56,7 +56,7 @@ function SellerRow({ seller, onChanged }) {
 
   return (
     <Card className="grid gap-5 p-4 sm:p-5 md:grid-cols-[220px_1fr]">
-      <div className="overflow-hidden rounded-btn border border-line">
+      <div className="self-start overflow-hidden rounded-btn border border-line">
         <SignBoard store={seller} />
       </div>
       <div className="min-w-0 space-y-3">

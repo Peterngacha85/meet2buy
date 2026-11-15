@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNotifyStore } from '../../store/notifyStore.js';
 import { MessageSquareText } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
@@ -17,13 +18,23 @@ const TABS = [
 
 export function DemoRequests() {
   const [tab, setTab] = useState('open');
-  const { data, loading, error, setData } = useFetch(() => api.get(`/stores/mine/presentation-requests?status=${tab}`), [tab]);
+  const { data, loading, error, setData, reload } = useFetch(() => api.get(`/stores/mine/presentation-requests?status=${tab}`), [tab]);
   const [actionError, setActionError] = useState('');
+  const newCount = useNotifyStore((s) => s.badges.requests);
+  const refreshBadges = useNotifyStore((s) => s.refreshBadges);
+
+  // A new request arrived (live notification): show it without a page reload.
+  const seenCount = useRef(newCount);
+  useEffect(() => {
+    if (newCount > (seenCount.current ?? 0)) reload();
+    seenCount.current = newCount;
+  }, [newCount, reload]);
 
   async function move(r, status) {
     setActionError('');
     try {
       await unwrap(api.patch(`/stores/mine/presentation-requests/${r.id}`, { status }));
+      refreshBadges();
       setData((d) => ({
         ...d,
         requests: d.requests.filter((x) => x.id !== r.id),

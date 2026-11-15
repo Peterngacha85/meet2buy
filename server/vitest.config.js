@@ -19,6 +19,8 @@ export default defineConfig({
       LIVEKIT_API_KEY: 'APItestkey',
       LIVEKIT_API_SECRET: 'test-livekit-secret-that-is-long-enough',
       SELLER_GRACE_SECONDS: '1',
+      MPESA_CALLBACK_TOKEN: 'test-callback-token',
+      API_PUBLIC_URL: 'https://api.test',
     },
   },
 });

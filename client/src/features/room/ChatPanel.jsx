@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { SendHorizontal } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 

@@ -9,7 +9,7 @@
 | **3. The mall** | 3 | ✅ done early with Sprint 2: mall entrance (Meet2buy sign), wing directory of shop signs, search, shop page with departments + line-up + "Ready to buy?", demo (presentation) requests. Left: "Live now" strip with viewer counts (needs Sprint 4), opening hours |
 | **4. The room (core)** ✅ | 4–5 | LiveKit integration, go live / end, buyer viewing, chat, presence, product shelf, pin product, room UI desktop + mobile. Also: "Live now" strip with viewer counts, auto-close after the seller is gone 2 min, room closes on suspension |
 | **5. Queue & counter** ✅ | 5 | Queue join/leave/position, call next, counter publish permissions, auto-pin. Also: notes to the seller (contacts masked), skip, counter timer with "Time's up", 20 s grace so a refresh keeps your place |
-| **6. Sales & payments** | 6 | Offers, checkout sheet, STK push + callback, commission, B2B payout + result handling, orders for buyer & seller |
+| **6. Sales & payments** ✅ (sandbox keys pending) | 6 | Offers, checkout sheet, STK push + callback, commission, B2B payout + result handling, orders for buyer & seller. Also: simulated M-Pesa mode until Daraja keys arrive, unpaid-order sweeper, callback secret, live notifications (toast + badges) for demo requests / orders / payouts / shops to review, "It's your turn" pop-up, "shop is live" alert for demo requesters |
 | **7. Admin & launch** | 7 | Admin overview, transactions, payouts + retry, commission settings, live rooms, users; testing; switch to client's production accounts; go live |
 
 **Protect the core:** if time runs short, the room (Sprint 4) and payments (Sprint 6) take priority over admin polish.

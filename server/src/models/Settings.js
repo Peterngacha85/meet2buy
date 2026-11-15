@@ -29,6 +29,8 @@ const settingsSchema = new mongoose.Schema(
     key: { type: String, default: 'global', unique: true },
     defaultCommissionRate: { type: Number, default: 8, min: 0, max: 100 },
     deductPayoutFeeFromSeller: { type: Boolean, default: false },
+    // Safaricom's B2B charge in KES, taken from the seller's payout only when deductPayoutFeeFromSeller is on.
+    payoutFee: { type: Number, default: 0, min: 0 },
     offerExpiryMinutes: { type: Number, default: 10 },
     counterTimeLimitMinutes: { type: Number, default: 5 },
     wings: { type: [wingSchema], default: () => DEFAULT_WINGS },

@@ -274,7 +274,7 @@ export function LiveControl() {
           </Card>
 
           {isLive && <PresenceBar presence={rt.presence} />}
-          {isLive && <SellerQueueCard rt={rt} />}
+          {isLive && <SellerQueueCard rt={rt} products={products} />}
 
           {/* Shelf */}
           <Card className="p-4 sm:p-5">

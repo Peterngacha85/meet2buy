@@ -9,6 +9,8 @@ import { Login } from '../pages/auth/Login.jsx';
 import { Register } from '../pages/auth/Register.jsx';
 import { OpenStore } from '../pages/auth/OpenStore.jsx';
 import { Account } from '../pages/account/Account.jsx';
+import { MyOrders } from '../pages/account/MyOrders.jsx';
+import { SellerOrders } from '../pages/seller/Orders.jsx';
 import { SellerOverview } from '../pages/seller/Overview.jsx';
 import { StoreProfile } from '../pages/seller/StoreProfile.jsx';
 import { SellerProducts } from '../pages/seller/Products.jsx';
@@ -39,7 +41,7 @@ export const router = createBrowserRouter([
         element: <RequireRole />,
         children: [
           { path: '/account', element: <Account /> },
-          { path: '/orders', ...soon('My orders', 6) },
+          { path: '/orders', element: <MyOrders /> },
         ],
       },
       { path: '*', element: <NotFound /> },
@@ -56,7 +58,7 @@ export const router = createBrowserRouter([
           { path: 'store', element: <StoreProfile /> },
           { path: 'products', element: <SellerProducts /> },
           { path: 'requests', element: <DemoRequests /> },
-          { path: 'orders', ...soon('Orders', 6) },
+          { path: 'orders', element: <SellerOrders /> },
           { path: 'payouts', element: <SellerPayouts /> },
           { path: 'live', lazy: liveControl },
         ],

@@ -25,6 +25,7 @@ router.post('/guest', authLimiter, optionalAuth, validate(guestSchema), auth.gue
 router.post('/guest/save', authLimiter, protect, validate(saveGuestSchema), auth.saveGuest);
 router.post('/logout', auth.logout);
 router.get('/me', protect, auth.me);
+router.get('/badges', protect, auth.badges);
 router.patch('/me', protect, validate(updateMeSchema), auth.updateMe);
 router.delete('/me', authLimiter, protect, validate(deleteMeSchema), auth.deleteMe);
 
