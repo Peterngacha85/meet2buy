@@ -4,6 +4,8 @@ import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 import { AUTH_COOKIE, verifyToken } from '../utils/token.js';
 import { logger } from '../utils/logger.js';
+import { setIo } from './io.js';
+import { registerRoomHandlers } from './roomHandlers.js';
 
 /**
  * Socket.io bootstrap. Authenticates with the same JWT cookie as the REST API.
@@ -15,6 +17,7 @@ export function initSockets(httpServer) {
     cors: { origin: env.CLIENT_URL, credentials: true },
   });
 
+  setIo(io);
   io.engine.use(cookieParser());
 
   io.use(async (socket, next) => {
@@ -33,7 +36,8 @@ export function initSockets(httpServer) {
     if (user) socket.join(`user:${user.id}`);
     logger.info(`socket connected ${socket.id} (${user ? `${user.role} ${user.id}` : 'guest'})`);
 
-    // Sprint 4: registerRoomHandlers(io, socket); registerQueueHandlers(io, socket); …
+    registerRoomHandlers(socket);
+    // Sprint 5: registerQueueHandlers(socket)
 
     socket.on('disconnect', () => logger.info(`socket disconnected ${socket.id}`));
   });

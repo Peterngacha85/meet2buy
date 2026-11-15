@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LogOut } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Input } from '../../components/ui/Input.jsx';
 import { Textarea } from '../../components/ui/Field.jsx';
@@ -30,7 +30,7 @@ function splitErrors(fieldErrors) {
 }
 
 export function OpenStore() {
-  const { user, status, registerSeller } = useAuth();
+  const { user, status, registerSeller, logout } = useAuth();
   const navigate = useNavigate();
   const wings = useFetch(() => api.get('/stores/wings'));
 
@@ -48,6 +48,12 @@ export function OpenStore() {
         <p className="text-sm text-muted">
           Shops are opened with their own business account. Log out, then open your shop with the business email.
         </p>
+        <Button variant="accent" className="mt-5 w-full" onClick={() => logout()}>
+          <LogOut className="size-4" aria-hidden /> Log out and open a shop
+        </Button>
+        <Button to="/" variant="ghost" className="mt-2 w-full">
+          Back to the mall
+        </Button>
       </AuthCard>
     );
   }

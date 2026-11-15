@@ -55,6 +55,23 @@ export function SignBoard({ store, size = 'md', className = '' }) {
   );
 }
 
+/** "Live now" tile: goes straight into the shop's live room, with how many are watching. */
+export function LiveShopTile({ store }) {
+  return (
+    <Link
+      to={`/shop/${store.slug}/live`}
+      className="group block overflow-hidden rounded-card border border-line bg-white transition duration-200 hover:-translate-y-0.5 hover:border-orange hover:shadow-[0_10px_30px_-12px_rgb(247_112_10/0.45)]"
+    >
+      <SignBoard store={store} />
+      <div className="flex items-center justify-between gap-2 px-3.5 py-3">
+        <p className="truncate font-semibold text-navy">{store.name}</p>
+        <span className="shrink-0 text-xs font-medium text-muted">{store.viewers ?? 0} watching</span>
+      </div>
+      <p className="border-t border-line px-3.5 py-2 text-sm font-semibold text-orange-ink group-hover:text-navy">Walk in →</p>
+    </Link>
+  );
+}
+
 /** Directory tile: signboard + shop name and its departments. */
 export function ShopSign({ store, wing }) {
   // Coming from a wing, open the shop on that wing's first department.

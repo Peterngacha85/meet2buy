@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ChevronRight, Eye, Video } from 'lucide-react';
+import { ChevronRight, Eye, Radio, Video } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
@@ -77,9 +77,15 @@ export function ShopPage() {
             </div>
             {store.description && <p className="mt-1 max-w-2xl text-muted">{store.description}</p>}
           </div>
-          <Button variant="accent" onClick={() => openDemo()} className="shrink-0">
-            <Video className="size-4" aria-hidden /> Get a live demonstration
-          </Button>
+          {store.isLive ? (
+            <Button to={`/shop/${store.slug}/live`} variant="accent" className="shrink-0">
+              <Radio className="size-4" aria-hidden /> Walk into the live room
+            </Button>
+          ) : (
+            <Button variant="accent" onClick={() => openDemo()} className="shrink-0">
+              <Video className="size-4" aria-hidden /> Get a live demonstration
+            </Button>
+          )}
         </div>
         {store.banner && (
           <img
@@ -140,9 +146,15 @@ export function ShopPage() {
                 Click for a demonstration by a {store.name} salesperson. Ask anything, then pay with M-Pesa.
               </p>
             </div>
-            <Button variant="accent" size="lg" onClick={() => openDemo()} className="shrink-0">
-              <Video className="size-4" aria-hidden /> Get a demonstration
-            </Button>
+            {store.isLive ? (
+              <Button to={`/shop/${store.slug}/live`} variant="accent" size="lg" className="shrink-0">
+                <Radio className="size-4" aria-hidden /> We're live — walk in
+              </Button>
+            ) : (
+              <Button variant="accent" size="lg" onClick={() => openDemo()} className="shrink-0">
+                <Video className="size-4" aria-hidden /> Get a demonstration
+              </Button>
+            )}
           </div>
         </section>
       )}

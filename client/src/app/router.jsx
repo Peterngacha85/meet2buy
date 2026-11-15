@@ -8,6 +8,7 @@ import { ShopPage } from '../pages/mall/ShopPage.jsx';
 import { Login } from '../pages/auth/Login.jsx';
 import { Register } from '../pages/auth/Register.jsx';
 import { OpenStore } from '../pages/auth/OpenStore.jsx';
+import { Account } from '../pages/account/Account.jsx';
 import { SellerOverview } from '../pages/seller/Overview.jsx';
 import { StoreProfile } from '../pages/seller/StoreProfile.jsx';
 import { SellerProducts } from '../pages/seller/Products.jsx';
@@ -20,18 +21,26 @@ import { NotFound } from '../pages/NotFound.jsx';
 
 const soon = (title, sprint) => ({ element: <ComingSoon title={title} sprint={sprint} /> });
 
+// The live room pages carry the video SDK, so they load only when opened.
+const liveRoom = async () => ({ Component: (await import('../pages/room/LiveRoom.jsx')).LiveRoom });
+const liveControl = async () => ({ Component: (await import('../pages/seller/LiveControl.jsx')).LiveControl });
+
 export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
     children: [
       { path: '/', element: <MallHome /> },
       { path: '/shop/:slug', element: <ShopPage /> },
+      { path: '/shop/:slug/live', lazy: liveRoom },
       { path: '/login', element: <Login /> },
       { path: '/register', element: <Register /> },
       { path: '/open-store', element: <OpenStore /> },
       {
         element: <RequireRole />,
-        children: [{ path: '/orders', ...soon('My orders', 6) }],
+        children: [
+          { path: '/account', element: <Account /> },
+          { path: '/orders', ...soon('My orders', 6) },
+        ],
       },
       { path: '*', element: <NotFound /> },
     ],
@@ -49,7 +58,7 @@ export const router = createBrowserRouter([
           { path: 'requests', element: <DemoRequests /> },
           { path: 'orders', ...soon('Orders', 6) },
           { path: 'payouts', element: <SellerPayouts /> },
-          { path: 'live', ...soon('Live control', 4) },
+          { path: 'live', lazy: liveControl },
         ],
       },
     ],

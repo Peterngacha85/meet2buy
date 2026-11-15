@@ -5,15 +5,24 @@ import { createApp } from './src/app.js';
 import { initSockets } from './src/sockets/index.js';
 import { ensureAdminFromEnv } from './src/services/adminBootstrap.js';
 import { logger } from './src/utils/logger.js';
+import { User } from './src/models/User.js';
+import { RoomSession } from './src/models/RoomSession.js';
+import { isLiveKitConfigured } from './src/services/livekit.js';
+import { resumeLiveSessions } from './src/services/roomService.js';
 
 async function start() {
   await connectDB(env.MONGO_URI);
+  // Bring indexes in line with the models (e.g. users.email became sparse for guest accounts).
+  await User.syncIndexes();
+  await RoomSession.syncIndexes();
   await ensureAdminFromEnv();
+  if (!isLiveKitConfigured()) logger.warn('LiveKit keys not set: sellers cannot go live');
 
   const app = createApp();
   const server = http.createServer(app);
   const io = initSockets(server);
   app.set('io', io);
+  await resumeLiveSessions();
 
   server.listen(env.PORT, () => logger.info(`Meet2buy API on http://localhost:${env.PORT}`));
 

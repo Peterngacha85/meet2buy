@@ -44,6 +44,17 @@ export async function remove(req, res) {
   ok(res, null);
 }
 
+const CATALOGUE_LIMIT = 2000;
+
+// GET /api/products — every visible SKU in every open shop (the mall directory lists them per brand)
+export async function listPublic(_req, res) {
+  const openStores = await Store.find({ status: 'approved' }).select('_id');
+  const products = await Product.find({ store: { $in: openStores.map((s) => s._id) }, isVisible: true })
+    .sort({ store: 1, createdAt: -1 })
+    .limit(CATALOGUE_LIMIT);
+  ok(res, { products });
+}
+
 // GET /api/products/:id — public product details (visible products in open shops only)
 export async function getOne(req, res) {
   const product = await Product.findOne({ _id: req.params.id, isVisible: true });

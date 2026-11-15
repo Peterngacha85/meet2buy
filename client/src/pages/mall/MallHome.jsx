@@ -6,7 +6,11 @@ import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
 import { StatusPill } from '../../components/ui/StatusPill.jsx';
-import { ShopSign } from '../../features/mall/ShopSign.jsx';
+import { LiveShopTile } from '../../features/mall/ShopSign.jsx';
+import { EntranceDoors } from '../../features/mall/EntranceDoors.jsx';
+import { BrandSkus } from '../../features/mall/BrandSkus.jsx';
+import { ProductDialog } from '../../features/mall/ProductDialog.jsx';
+import { DemoRequestDialog } from '../../features/mall/DemoRequestDialog.jsx';
 import { useFetch } from '../../hooks/useFetch.js';
 import { api } from '../../services/api.js';
 
@@ -22,7 +26,7 @@ function Stat({ value, label }) {
   );
 }
 
-function Entrance({ totals, wingCount }) {
+function Entrance({ totals, wingCount, onWalkIn }) {
   return (
     <section className="relative overflow-hidden bg-navy-dark text-white">
       <div
@@ -50,7 +54,7 @@ function Entrance({ totals, wingCount }) {
           variant="accent"
           size="lg"
           className="mt-9"
-          onClick={() => document.getElementById('directory')?.scrollIntoView({ behavior: 'smooth' })}
+          onClick={onWalkIn}
         >
           Walk in <ArrowDown className="size-4" aria-hidden />
         </Button>
@@ -61,7 +65,7 @@ function Entrance({ totals, wingCount }) {
   );
 }
 
-function WingSection({ wing, stores }) {
+function WingSection({ wing, stores, skusFor, onOpen, onDemo }) {
   return (
     <section aria-labelledby={`wing-${wing.slug}`} className="scroll-mt-24">
       <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-line pb-3">
@@ -73,10 +77,16 @@ function WingSection({ wing, stores }) {
         </p>
       </div>
       {stores.length ? (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+        <ul className="space-y-6 sm:space-y-8">
           {stores.map((s) => (
             <li key={s.id}>
-              <ShopSign store={s} wing={wing.slug} />
+              <BrandSkus
+                store={s}
+                wing={wing.slug}
+                products={skusFor(s, wing.slug)}
+                onOpen={(p) => onOpen(s, p)}
+                onDemo={(p) => onDemo(s, p)}
+              />
             </li>
           ))}
         </ul>
@@ -94,19 +104,55 @@ export function MallHome() {
   const storesReq = useFetch(() => api.get('/stores'));
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
+  const [walking, setWalking] = useState(false);
+  const productsReq = useFetch(() => api.get('/products'));
+  const [viewing, setViewing] = useState(null); // { store, product } in the details dialog
+  const [demo, setDemo] = useState(null); // { store, product } when the demo dialog is open
+
+  const goToDirectory = (behavior) => {
+    document.getElementById('directory')?.scrollIntoView({ behavior });
+    document.getElementById('directory-title')?.focus({ preventScroll: true });
+  };
+  const walkIn = () => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !Element.prototype.animate) goToDirectory('smooth');
+    else setWalking(true);
+  };
   const activeWing = params.get('wing') ?? 'all';
 
   const wings = wingsReq.data?.wings ?? [];
   const totals = wingsReq.data?.totals ?? { shops: 0, live: 0 };
   const stores = storesReq.data?.stores ?? [];
 
-  const matches = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return stores;
-    return stores.filter(
-      (s) => s.name.toLowerCase().includes(term) || s.departments.some((d) => d.name.toLowerCase().includes(term)),
-    );
-  }, [stores, q]);
+  const term = q.trim().toLowerCase();
+  const productsByStore = useMemo(() => {
+    const map = new Map();
+    for (const p of productsReq.data?.products ?? []) {
+      if (!map.has(p.store)) map.set(p.store, []);
+      map.get(p.store).push(p);
+    }
+    return map;
+  }, [productsReq.data]);
+
+  // A brand matches on its name or a department; otherwise on any of its SKUs (then only those SKUs show).
+  const brandMatches = (s) =>
+    s.name.toLowerCase().includes(term) || s.departments.some((d) => d.name.toLowerCase().includes(term));
+  const matches = !term
+    ? stores
+    : stores.filter(
+        (s) => brandMatches(s) || (productsByStore.get(s.id) ?? []).some((p) => p.name.toLowerCase().includes(term)),
+      );
+
+  const skusFor = (store, wingSlug) => {
+    const inWing = new Set(store.departments.filter((d) => d.wing === wingSlug).map((d) => d.id));
+    const all = (productsByStore.get(store.id) ?? []).filter((p) => inWing.has(p.department));
+    return !term || brandMatches(store) ? all : all.filter((p) => p.name.toLowerCase().includes(term));
+  };
+  const openDemo = (store, product) => {
+    setViewing(null);
+    setDemo({ store, product });
+  };
+  const demoDepartment = demo?.product ? demo.store.departments.find((d) => d.id === demo.product.department) : null;
 
   const live = stores.filter((s) => s.isLive);
   const shownWings = activeWing === 'all' ? wings : wings.filter((w) => w.slug === activeWing);
@@ -128,7 +174,8 @@ export function MallHome() {
 
   return (
     <>
-      <Entrance totals={totals} wingCount={wings.length} />
+      <Entrance totals={totals} wingCount={wings.length} onWalkIn={walkIn} />
+      {walking && <EntranceDoors onInside={() => goToDirectory('instant')} onDone={() => setWalking(false)} />}
 
       {live.length > 0 && (
         <section className="bg-bg-soft">
@@ -140,7 +187,7 @@ export function MallHome() {
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
               {live.map((s) => (
                 <li key={s.id}>
-                  <ShopSign store={s} />
+                  <LiveShopTile store={s} />
                 </li>
               ))}
             </ul>
@@ -152,7 +199,7 @@ export function MallHome() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-ink">Mall directory</p>
-            <h2 className="mt-1 text-[26px] font-bold sm:text-[32px]">Choose a shop</h2>
+            <h2 id="directory-title" tabIndex={-1} className="mt-1 text-[26px] font-bold outline-none sm:text-[32px]">Choose a shop</h2>
           </div>
           <label className="relative block sm:w-72">
             <span className="sr-only">Find a shop</span>
@@ -161,7 +208,7 @@ export function MallHome() {
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Find a shop or department"
+              placeholder="Find a shop, department or product"
               className="h-11 w-full rounded-btn border border-line bg-white pl-10 pr-3.5 text-[15px] focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/25"
             />
           </label>
@@ -190,14 +237,37 @@ export function MallHome() {
         ) : (
           <div className="mt-8 space-y-12">
             {shownWings.map((w) => (
-              <WingSection key={w.slug} wing={w} stores={matches.filter((s) => s.wings.includes(w.slug))} />
+              <WingSection
+                key={w.slug}
+                wing={w}
+                stores={matches.filter((s) => s.wings.includes(w.slug))}
+                skusFor={skusFor}
+                onOpen={(store, product) => setViewing({ store, product })}
+                onDemo={openDemo}
+              />
             ))}
             {q && !matches.length && (
-              <p className="text-center text-muted">No shop or department matches &ldquo;{q}&rdquo;.</p>
+              <p className="text-center text-muted">No shop, department or product matches &ldquo;{q}&rdquo;.</p>
             )}
           </div>
         )}
       </section>
+
+      <ProductDialog
+        product={viewing?.product ?? null}
+        onClose={() => setViewing(null)}
+        onDemo={(product) => openDemo(viewing.store, product)}
+      />
+      {demo && (
+        <DemoRequestDialog
+          open
+          onClose={() => setDemo(null)}
+          store={demo.store}
+          department={demoDepartment}
+          products={productsByStore.get(demo.store.id) ?? []}
+          product={demo.product}
+        />
+      )}
 
       <section className="border-t border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-4 px-4 py-10 sm:flex-row sm:items-center sm:justify-between">

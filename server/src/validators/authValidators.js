@@ -27,8 +27,19 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export const guestSchema = z.object({ name });
+
+// Turn a guest into a full account (keeps their demo requests, orders, etc.).
+export const saveGuestSchema = z.object({ email, phone, password });
+
 export const googleSchema = z.object({
   credential: z.string().min(20, 'Missing Google credential').max(5000),
+});
+
+// Which of the two is needed depends on the account (checked in the controller).
+export const deleteMeSchema = z.object({
+  password: z.string().max(128).optional(),
+  confirm: z.string().max(20).optional(),
 });
 
 // currentPassword is checked in the controller: required only if the account already has a password.

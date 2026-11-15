@@ -6,6 +6,7 @@ import { assertDepartmentsRemovable, resolveDepartments } from '../services/stor
 import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
 import { escapeRegex } from '../utils/slug.js';
+import { viewerCount } from '../sockets/presence.js';
 
 const PAGE_SIZE = 60;
 
@@ -53,7 +54,8 @@ export async function listStores(req, res) {
     Store.countDocuments(filter),
   ]);
 
-  ok(res, { stores: stores.map(publicStore), total, page, pages: Math.ceil(total / PAGE_SIZE) || 1 });
+  const withViewers = (s) => ({ ...publicStore(s), viewers: s.isLive ? viewerCount(s.currentSession) : 0 });
+  ok(res, { stores: stores.map(withViewers), total, page, pages: Math.ceil(total / PAGE_SIZE) || 1 });
 }
 
 // GET /api/stores/:slug — shop page. The owner and admins can preview a shop before approval.

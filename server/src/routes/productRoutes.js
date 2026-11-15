@@ -11,6 +11,7 @@ const router = Router();
 const seller = [protect, allow('seller'), requireStore];
 const idParam = validate(z.object({ id: objectId('product') }), 'params');
 
+router.get('/', products.listPublic);
 router.get('/mine', ...seller, products.listMine);
 router.post('/', ...seller, validate(createProductSchema), products.create);
 router.get('/:id', idParam, products.getOne);

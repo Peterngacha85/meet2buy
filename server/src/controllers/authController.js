@@ -1,7 +1,10 @@
 import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 import { Store, privateStore } from '../models/Store.js';
+import { Product } from '../models/Product.js';
+import { PresentationRequest } from '../models/PresentationRequest.js';
 import { resolveDepartments } from '../services/storeService.js';
+import { endStoreSession } from '../services/roomService.js';
 import { isGoogleConfigured, verifyGoogleIdToken } from '../services/google.js';
 import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
@@ -103,6 +106,30 @@ export async function googleLogin(req, res) {
   ok(res, { user, isNew: true }, 201);
 }
 
+// POST /api/auth/guest { name } — "Continue as a guest": a buyer account with just a name
+export async function guest(req, res) {
+  if (req.user && !req.user.isGuest) throw new AppError(409, 'You are already logged in');
+  const user = await User.create({ name: req.body.name, role: 'buyer', isGuest: true });
+  setAuthCookie(res, user);
+  ok(res, { user }, 201);
+}
+
+// POST /api/auth/guest/save { email, phone, password } — keep the guest's activity under a real account
+export async function saveGuest(req, res) {
+  if (!req.user.isGuest) throw new AppError(409, 'This account is already saved');
+  const { email, phone, password } = req.body;
+  if (await User.exists({ email })) {
+    throw new AppError(409, 'An account with this email already exists', [
+      { field: 'email', message: 'An account with this email already exists. Log in instead.' },
+    ]);
+  }
+  const user = await User.findById(req.user._id);
+  Object.assign(user, { email, phone, password, isGuest: false });
+  await user.save();
+  setAuthCookie(res, user);
+  ok(res, { user });
+}
+
 // POST /api/auth/logout
 export function logout(_req, res) {
   clearAuthCookie(res);
@@ -121,7 +148,9 @@ export async function me(req, res) {
     const found = await Store.findOne({ owner: req.user._id }).select('+payout');
     store = found ? privateStore(found) : null;
   }
-  ok(res, { user: req.user, store });
+  // Tells the account page whether to confirm with a password (Google-only and guest accounts have none).
+  const hasPassword = Boolean(await User.exists({ _id: req.user._id, password: { $exists: true, $ne: null } }));
+  ok(res, { user: req.user, store, hasPassword });
 }
 
 // PATCH /api/auth/me
@@ -144,4 +173,34 @@ export async function updateMe(req, res) {
 
   await user.save();
   ok(res, { user });
+}
+
+// DELETE /api/auth/me { password?, confirm } — permanently delete your own account.
+// Accounts with a password confirm with it; Google-only and guest accounts type DELETE.
+// A seller's shop, products and demo requests go with the account.
+export async function deleteMe(req, res) {
+  const user = await User.findById(req.user._id).select('+password');
+  if (user.isEnvOwner) {
+    throw new AppError(403, 'The owner admin account is managed from the server settings and cannot be deleted here');
+  }
+  if (user.password) {
+    if (!(await user.comparePassword(req.body.password))) {
+      throw new AppError(400, 'Password is incorrect', [{ field: 'password', message: 'Password is incorrect' }]);
+    }
+  } else if (req.body.confirm !== 'DELETE') {
+    throw new AppError(400, 'Type DELETE to confirm', [{ field: 'confirm', message: 'Type DELETE to confirm' }]);
+  }
+
+  const stores = await Store.find({ owner: user._id }).select('_id');
+  const storeIds = stores.map((s) => s._id);
+  await Promise.all(storeIds.map((id) => endStoreSession(id, 'account_deleted')));
+  await Promise.all([
+    Product.deleteMany({ store: { $in: storeIds } }),
+    PresentationRequest.deleteMany({ $or: [{ store: { $in: storeIds } }, { buyer: user._id }] }),
+  ]);
+  await Store.deleteMany({ _id: { $in: storeIds } });
+  await User.deleteOne({ _id: user._id });
+
+  clearAuthCookie(res);
+  ok(res, null);
 }

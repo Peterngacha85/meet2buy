@@ -38,6 +38,14 @@ const schema = z.object({
 
   // Google sign-in (OAuth Web client ID from Google Cloud console). Empty = button hidden, endpoint off.
   GOOGLE_CLIENT_ID: z.string().optional(),
+
+  // LiveKit — the live room's video (doc 07). URL is the wss:// project URL from LiveKit Cloud.
+  // Empty = "Go live" is switched off with a clear message.
+  LIVEKIT_URL: z.string().regex(/^wss?:\/\//, 'LIVEKIT_URL must start with wss:// (or ws:// locally)').optional(),
+  LIVEKIT_API_KEY: z.string().optional(),
+  LIVEKIT_API_SECRET: z.string().optional(),
+  // A live session ends by itself if the seller has been disconnected this long.
+  SELLER_GRACE_SECONDS: z.coerce.number().int().positive().default(120),
 }).refine((e) => Boolean(e.ADMIN_EMAIL) === Boolean(e.ADMIN_PASSWORD), {
   message: 'Set both ADMIN_EMAIL and ADMIN_PASSWORD, or neither',
   path: ['ADMIN_EMAIL'],

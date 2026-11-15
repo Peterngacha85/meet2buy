@@ -60,8 +60,10 @@ export function DashboardLayout({ title, items, action }) {
         {action && <div className="px-3 pb-4">{action}</div>}
         {nav}
         <div className="border-t border-white/10 px-3 pt-4">
-          <p className="truncate px-3 text-sm font-medium text-white">{user?.name}</p>
-          <p className="truncate px-3 pb-2 text-xs text-white/60">{user?.email}</p>
+          <NavLink to="/account" className="block rounded-btn px-3 pb-2 pt-1 hover:bg-white/5" title="My account">
+            <p className="truncate text-sm font-medium text-white">{user?.name}</p>
+            <p className="truncate text-xs text-white/60">{user?.email}</p>
+          </NavLink>
           <button
             onClick={async () => {
               await logout();

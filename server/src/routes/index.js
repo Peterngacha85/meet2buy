@@ -8,6 +8,7 @@ import authRoutes from './authRoutes.js';
 import storeRoutes from './storeRoutes.js';
 import productRoutes from './productRoutes.js';
 import adminRoutes from './adminRoutes.js';
+import roomRoutes from './roomRoutes.js';
 
 const router = Router();
 
@@ -17,9 +18,9 @@ router.use('/stores', storeRoutes);
 router.use('/products', productRoutes);
 router.post('/uploads/signature', protect, allow('seller', 'admin'), validate(uploadSignatureSchema), uploads.signature);
 router.use('/admin', adminRoutes);
+router.use('/rooms', roomRoutes);
 
 // Mounted in later sprints:
-// router.use('/rooms', roomRoutes);
 // router.use('/orders', orderRoutes);
 // router.use('/mpesa', mpesaRoutes);
 

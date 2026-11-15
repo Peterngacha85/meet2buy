@@ -53,6 +53,15 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  /**
+   * Permanently delete the logged-in account. body: { password } or { confirm: 'DELETE' }.
+   * Resolves to a function that clears the session, so the caller can leave guarded pages first.
+   */
+  async deleteAccount(body) {
+    await unwrap(api.delete('/auth/me', { data: body }));
+    return () => set({ user: null, store: null, status: 'ready' });
+  },
+
   setUser: (user) => set({ user }),
   setStore: (store) => set({ store }),
 }));

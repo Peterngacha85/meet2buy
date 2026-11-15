@@ -50,6 +50,7 @@ Base URL: `/api` · Auth: JWT cookie · 🔓 public · 👤 logged in · 🛍 se
 |--------|------|--------|-------------|
 | POST | `/start` | 🛍 | Start live session (store must be approved + payout set) → returns session + seller LiveKit token |
 | POST | `/end` | 🛍 | End live session |
+| GET | `/mine` | 🛍 | Seller's live control: current session + seller token (if live), shelf, presence |
 | GET | `/:storeSlug` | 🔓 | Current session info (pinned product, status) |
 | POST | `/:sessionId/token` | 🔓/👤 | LiveKit token: guests & buyers get subscribe-only |
 | GET | `/:sessionId/messages` | 🔓 | Last 50 chat messages |

@@ -15,6 +15,10 @@ export default defineConfig({
       CLOUDINARY_CLOUD_NAME: 'testcloud',
       CLOUDINARY_API_KEY: '123456789012345',
       CLOUDINARY_API_SECRET: 'test-cloudinary-secret',
+      LIVEKIT_URL: 'wss://test.livekit.cloud',
+      LIVEKIT_API_KEY: 'APItestkey',
+      LIVEKIT_API_SECRET: 'test-livekit-secret-that-is-long-enough',
+      SELLER_GRACE_SECONDS: '1',
     },
   },
 });

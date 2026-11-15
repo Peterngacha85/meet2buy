@@ -32,10 +32,10 @@ function AccountMenu() {
           <span className="hidden sm:inline">{user.role === 'admin' ? 'Admin' : 'My store'}</span>
         </Button>
       )}
-      <span className="hidden items-center gap-1.5 px-2 text-sm font-medium text-ink md:inline-flex">
-        <User className="size-4 text-navy" aria-hidden />
-        {user.name.split(' ')[0]}
-      </span>
+      <Button to="/account" variant="ghost" size="sm" aria-label="My account">
+        <User className="size-4" aria-hidden />
+        <span className="hidden text-ink md:inline">{user.name.split(' ')[0]}</span>
+      </Button>
       <Button
         variant="ghost"
         size="sm"

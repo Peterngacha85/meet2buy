@@ -10,20 +10,27 @@ export const USER_STATUSES = ['active', 'suspended', 'disabled'];
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
+    // Guests have no email until they save their account (sparse: many guests, no clash).
     email: {
       type: String,
-      required: true,
+      required: [
+        function emailRequired() {
+          return !this.isGuest;
+        },
+        'Email is required',
+      ],
       unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
     },
     phone: {
       type: String,
-      // Sellers need a phone. Buyers too, except Google sign-ups (they give their M-Pesa number at checkout).
-      // The .env admin may not have one.
+      // Sellers need a phone. Buyers too, except Google sign-ups and guests (they give their M-Pesa
+      // number at checkout). The .env admin may not have one.
       required: [
         function phoneRequired() {
-          return this.role === 'seller' || (this.role === 'buyer' && !this.googleId);
+          return this.role === 'seller' || (this.role === 'buyer' && !this.googleId && !this.isGuest);
         },
         'Phone number is required',
       ],
@@ -34,7 +41,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [
         function passwordRequired() {
-          return !this.googleId;
+          return !this.googleId && !this.isGuest;
         },
         'Password is required',
       ],
@@ -48,6 +55,8 @@ const userSchema = new mongoose.Schema(
     status: { type: String, enum: USER_STATUSES, default: 'active' },
     // The owner admin managed by ADMIN_EMAIL/ADMIN_PASSWORD. Cannot be suspended or demoted from the dashboard.
     isEnvOwner: { type: Boolean, default: false },
+    // "Continue as a guest": a buyer with only a name. Can be saved as a full account later.
+    isGuest: { type: Boolean, default: false },
   },
   {
     timestamps: true,

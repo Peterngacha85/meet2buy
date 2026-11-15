@@ -1,5 +1,6 @@
 import { Store, privateStore } from '../models/Store.js';
 import { Product } from '../models/Product.js';
+import { endStoreSession } from '../services/roomService.js';
 import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
 
@@ -67,8 +68,10 @@ export async function suspend(req, res) {
   const store = await loadStore(req.params.storeId);
   if (store.status !== 'approved') throw new AppError(409, 'Only open shops can be suspended');
   setStatus(store, 'suspended', req.body.reason || null);
-  store.isLive = false; // Sprint 4: also end the live room session
   await store.save();
+  // Close the room at once: everyone inside sees "closed by Meet2buy".
+  await endStoreSession(store._id, 'suspended');
+  store.isLive = false;
   ok(res, { seller: withOwner(store) });
 }
 
