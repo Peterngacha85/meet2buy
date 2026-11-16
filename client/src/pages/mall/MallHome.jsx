@@ -92,8 +92,8 @@ function WingSection({ wing, stores }) {
 }
 
 export function MallHome() {
-  const wingsReq = useFetch(() => api.get('/stores/wings'));
-  const storesReq = useFetch(() => api.get('/stores'));
+  const wingsReq = useFetch(() => api.get('/stores/wings'), [], { live: ['mall', 'rooms'] });
+  const storesReq = useFetch(() => api.get('/stores'), [], { live: ['mall', 'rooms'] });
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
   const [walking, setWalking] = useState(false);

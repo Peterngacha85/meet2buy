@@ -130,7 +130,7 @@ function ProductForm({ open, onClose, product, departments, defaultDepartment, o
 
 export function SellerProducts() {
   const { store } = useMyStore();
-  const { data, loading, error, setData } = useFetch(() => api.get('/products/mine'));
+  const { data, loading, error, setData } = useFetch(() => api.get('/products/mine'), [], { live: ['products'] });
   const [dept, setDept] = useState(store.departments[0]?.id ?? '');
   const [editing, setEditing] = useState(null); // null | 'new' | product
   const [actionError, setActionError] = useState('');

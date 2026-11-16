@@ -17,7 +17,7 @@ export function AdminUsers() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
   const qs = new URLSearchParams(Object.entries({ q: search, role }).filter(([, v]) => v)).toString();
-  const { data, loading, error, setData } = useFetch(() => api.get(`/admin/users?${qs}`), [qs]);
+  const { data, loading, error, setData } = useFetch(() => api.get(`/admin/users?${qs}`), [qs], { live: ['users', 'sellers'] });
   const [busy, setBusy] = useState('');
   const [actionError, setActionError] = useState('');
 

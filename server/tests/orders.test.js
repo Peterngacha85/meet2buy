@@ -527,6 +527,30 @@ describe('Offers in the room', () => {
     expect(stored.stock).toBe(4);
   });
 
+  it('announces what changed so open pages refresh themselves (topic names only, no data)', async () => {
+    const { seller, product } = await shopWithProduct({ stock: 3 });
+    const guest = await socketAs('');
+    const events = [];
+    guest.on('data:changed', (e) => events.push(e));
+    // A seller edit → products + mall, merged into one event.
+    await request(app).patch(`/api/products/${product.id}`).set('Cookie', seller).send({ price: 2600 });
+    await request(app).patch(`/api/products/${product.id}`).set('Cookie', seller).send({ price: 2700 });
+    await until(() => events.length > 0);
+    await sleep(300);
+    expect(events).toEqual([{ topics: ['products', 'mall'] }]);
+    // Reads announce nothing; an M-Pesa callback announces orders + payouts once processed.
+    events.length = 0;
+    await request(app).get('/api/products/mine').set('Cookie', seller);
+    const buyer = await loginAs('buyer', 'amina@example.com', 'Amina');
+    const order = await Order.findById((await checkout(buyer, { productId: product.id })).body.data.order.id);
+    await until(() => events.some((e) => e.topics.includes('orders')));
+    events.length = 0;
+    await stkCallback((await Payment.findById(order.payment)).checkoutRequestId, { amount: 2700 });
+    const e = await until(() => events.find((x) => x.topics.includes('payouts')));
+    expect(e.topics).toEqual(expect.arrayContaining(['orders', 'payouts']));
+    expect((await Order.findById(order._id)).status).toBe('paid'); // announced after processing
+  });
+
   it('notifies the seller about a new demo request', async () => {
     const { seller, store, product } = await shopWithProduct();
     const s = await socketAs(seller);

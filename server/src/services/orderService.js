@@ -11,6 +11,7 @@ import { computeSplit, createPayout, sendPayout } from './payoutService.js';
 import { postSystemMessage } from './roomService.js';
 import { notifyStoreOwner } from './notifyService.js';
 import { issueReceipt } from './receiptService.js';
+import { changed } from './liveService.js';
 
 // Checkout and the life of an order (doc 08 §3). Real money: every step is atomic and runs at most once.
 
@@ -375,6 +376,7 @@ export async function sweepUnpaidOrders() {
     .select('_id')
     .limit(50);
   for (const o of stale) await resolvePending(o._id, { cancelIfUnknown: true }).catch((err) => logger.error('sweeper failed', err));
+  if (stale.length) changed('orders');
   return stale.length;
 }
 

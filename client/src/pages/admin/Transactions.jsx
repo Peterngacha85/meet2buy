@@ -79,7 +79,7 @@ export function AdminTransactions() {
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
   const qs = new URLSearchParams(Object.entries({ status, q: params.get('q') ?? '', from, to }).filter(([, v]) => v)).toString();
-  const { data, loading, error, reload } = useFetch(() => api.get(`/admin/transactions?${qs}`), [qs]);
+  const { data, loading, error, reload } = useFetch(() => api.get(`/admin/transactions?${qs}`), [qs], { live: ['orders', 'payouts'] });
   const [resolving, setResolving] = useState(null);
 
   const setParam = (k, v) =>

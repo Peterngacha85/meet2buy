@@ -4,6 +4,7 @@ let io = null;
 export const setIo = (server) => {
   io = server;
 };
+export const getIo = () => io;
 
 /** Emit to a Socket.io room; a no-op before sockets start (e.g. in REST-only tests). */
 export function emitTo(room, event, payload) {

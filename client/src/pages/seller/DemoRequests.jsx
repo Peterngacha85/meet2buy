@@ -20,7 +20,7 @@ const TABS = [
 
 export function DemoRequests() {
   const [tab, setTab] = useState('open');
-  const { data, loading, error, setData, reload } = useFetch(() => api.get(`/stores/mine/presentation-requests?status=${tab}`), [tab]);
+  const { data, loading, error, setData, reload } = useFetch(() => api.get(`/stores/mine/presentation-requests?status=${tab}`), [tab], { live: ['requests'] });
   const [actionError, setActionError] = useState('');
   const { store } = useMyStore();
   const newCount = useNotifyStore((s) => s.badges.requests);

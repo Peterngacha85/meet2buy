@@ -17,7 +17,7 @@ function Stat({ label, value, to, tone = 'text-navy' }) {
 }
 
 export function AdminOverview() {
-  const { data, loading, error } = useFetch(() => api.get('/admin/stats'));
+  const { data, loading, error } = useFetch(() => api.get('/admin/stats'), [], { live: ['orders', 'payouts', 'sellers', 'rooms', 'users'] });
   if (loading) return <Spinner />;
   if (error) return <p className="text-danger">{error.message}</p>;
   const s = data.stats;

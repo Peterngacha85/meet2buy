@@ -11,19 +11,20 @@ import roomRoutes from './roomRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import mpesaRoutes from './mpesaRoutes.js';
 import supportRoutes from './supportRoutes.js';
+import { announces } from '../services/liveService.js';
 
 const router = Router();
 
 router.get('/health', (_req, res) => res.json({ success: true, data: { status: 'ok' } }));
-router.use('/auth', authRoutes);
-router.use('/stores', storeRoutes);
-router.use('/products', productRoutes);
+router.use('/auth', announces('users', 'sellers'), authRoutes);
+router.use('/stores', announces('store', 'requests', 'sellers', 'mall'), storeRoutes);
+router.use('/products', announces('products', 'mall'), productRoutes);
 // Buyers may upload only after-sales photos; shop images are for sellers and admins.
 router.post('/uploads/signature', protect, validate(uploadSignatureSchema), uploads.signature);
-router.use('/admin', adminRoutes);
-router.use('/rooms', roomRoutes);
-router.use('/orders', orderRoutes);
+router.use('/admin', announces('sellers', 'store', 'orders', 'payouts', 'rooms', 'users', 'settings', 'mall'), adminRoutes);
+router.use('/rooms', announces('rooms', 'mall', 'store'), roomRoutes);
+router.use('/orders', announces('orders'), orderRoutes);
 router.use('/mpesa', mpesaRoutes);
-router.use('/support', supportRoutes);
+router.use('/support', announces('support'), supportRoutes);
 
 export default router;

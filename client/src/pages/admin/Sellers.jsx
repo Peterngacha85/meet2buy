@@ -199,7 +199,7 @@ function SellerRow({ seller, onChanged }) {
 
 export function AdminSellers() {
   const [tab, setTab] = useState('pending');
-  const { data, loading, error, reload } = useFetch(() => api.get(`/admin/sellers?status=${tab}`), [tab]);
+  const { data, loading, error, reload } = useFetch(() => api.get(`/admin/sellers?status=${tab}`), [tab], { live: ['sellers', 'store', 'products'] });
 
   return (
     <div className="mx-auto max-w-5xl">

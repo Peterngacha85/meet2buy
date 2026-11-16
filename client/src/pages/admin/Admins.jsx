@@ -128,7 +128,7 @@ function AddAdminDialog({ open, onClose, onAdded }) {
 
 // Admin: who can run Meet2buy (doc 06 /admin/admins).
 export function AdminAdmins() {
-  const { data, loading, error, reload } = useFetch(() => api.get('/admin/admins'));
+  const { data, loading, error, reload } = useFetch(() => api.get('/admin/admins'), [], { live: ['users'] });
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(null);
   const [busy, setBusy] = useState(false);

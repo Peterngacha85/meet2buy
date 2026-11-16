@@ -18,7 +18,7 @@ const TABS = [
 // Admin: seller payouts (doc 08 §7 rules 3, 4, 8). Failed ones show Safaricom's reason and can be retried safely.
 export function AdminPayouts() {
   const [tab, setTab] = useState('failed');
-  const { data, loading, error, reload } = useFetch(() => api.get(`/admin/payouts${tab ? `?status=${tab}` : ''}`), [tab]);
+  const { data, loading, error, reload } = useFetch(() => api.get(`/admin/payouts${tab ? `?status=${tab}` : ''}`), [tab], { live: ['payouts', 'orders'] });
   const [busy, setBusy] = useState('');
   const [messages, setMessages] = useState({});
 

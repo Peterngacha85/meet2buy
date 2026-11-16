@@ -136,7 +136,7 @@ function Paper({ r }) {
 export function ReceiptPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { data, loading, error } = useFetch(() => api.get(`/orders/${orderId}/receipt`), [orderId]);
+  const { data, loading, error } = useFetch(() => api.get(`/orders/${orderId}/receipt`), [orderId], { live: ['orders', 'payouts'] });
   const [run, setRun] = useState(0); // bump to replay the print animation
   const [printing, setPrinting] = useState(true);
   const r = data?.receipt;

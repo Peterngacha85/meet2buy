@@ -3,6 +3,7 @@ import { logMpesa } from '../models/Commerce.js';
 import { applyStkResult, parseStkCallback } from '../services/orderService.js';
 import { applyB2BResult, applyB2BTimeout, applyStatusResult } from '../services/payoutService.js';
 import { logger } from '../utils/logger.js';
+import { changed } from '../services/liveService.js';
 
 // Called by Safaricom (doc 06 /api/mpesa). Rule 7: answer 200 at once, then process.
 // Rule 5: every callback is logged raw first.
@@ -24,6 +25,8 @@ function handle(type, process) {
     } catch (err) {
       logger.error(`${type} processing failed`, err);
     }
+    // We answered Safaricom before processing, so announce only now that the order/payout has moved.
+    changed('orders', 'payouts');
   };
 }
 

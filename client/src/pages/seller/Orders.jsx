@@ -22,7 +22,7 @@ const PAYOUT_LABEL = {
 
 // Doc 02 §1.6: paid orders with delivery details, commission, payout status; mark shipped / delivered.
 export function SellerOrders() {
-  const { data, loading, error, reload, setData } = useFetch(() => api.get('/orders/store'));
+  const { data, loading, error, reload, setData } = useFetch(() => api.get('/orders/store'), [], { live: ['orders', 'payouts'] });
   const [busy, setBusy] = useState('');
   const [actionError, setActionError] = useState('');
   const toShip = useNotifyStore((s) => s.badges.orders);

@@ -88,8 +88,8 @@ function StatusCard({ store }) {
 export function SellerOverview() {
   const { user } = useAuth();
   const { store } = useMyStore();
-  const products = useFetch(() => api.get('/products/mine'));
-  const requests = useFetch(() => api.get('/stores/mine/presentation-requests?status=open'));
+  const products = useFetch(() => api.get('/products/mine'), [], { live: ['products'] });
+  const requests = useFetch(() => api.get('/stores/mine/presentation-requests?status=open'), [], { live: ['requests'] });
 
   if (!store) return null;
 

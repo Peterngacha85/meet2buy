@@ -4,36 +4,61 @@ import { Bell, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth.js';
 import { connectSocket } from '../../services/socket.js';
 import { chime, systemNotify, useNotifyStore } from '../../store/notifyStore.js';
+import { useAuthStore } from '../../store/authStore.js';
+import { announceChanged } from '../../services/live.js';
 
 const AUTO_HIDE_MS = 9000;
 
 /**
  * Live notifications for the logged-in user (Socket.io "notify"): a toast, a chime, a system
- * notification when the tab is hidden, and fresh badge counts. Mounted once in each layout.
+ * notification when the tab is hidden, and fresh badge counts. Also passes on "data changed"
+ * signals so open pages update themselves (guests too, for the mall). Mounted once in each layout.
  */
 export function NotificationCenter() {
   const { user } = useAuth();
   const { toasts, push, dismiss, refreshBadges, clear } = useNotifyStore();
 
+  const userId = user?.id ?? null;
   useEffect(() => {
-    if (!user) {
-      clear();
-      return undefined;
-    }
-    refreshBadges();
+    if (!userId) clear();
+    else refreshBadges();
     const socket = connectSocket();
+    let connectedBefore = false;
     socket.on('connect', () => {
+      if (connectedBefore) announceChanged(['*']); // back online: catch up on anything missed
+      connectedBefore = true;
+      if (!userId) return;
       refreshBadges(); // catch up after a reconnect
       socket.emit('notify:sync'); // demo invites sent while we were away
     });
+    // Badge counts and the account are re-read at most once per burst of changes.
+    let timer = null;
+    let account = false;
+    socket.on('data:changed', ({ topics = [] } = {}) => {
+      announceChanged(topics);
+      if (!userId) return;
+      // An admin may have approved/suspended this shop or changed this account.
+      account ||= topics.some((t) => ['store', 'sellers', 'users'].includes(t));
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        refreshBadges();
+        if (account) useAuthStore.getState().refresh();
+        account = false;
+      }, 600);
+    });
+    const stop = () => {
+      clearTimeout(timer);
+      socket.disconnect();
+    };
+    if (!userId) return stop;
     socket.on('notify', (n) => {
       if (push(n) === null) return; // already showing, or dismissed earlier
       chime();
       systemNotify(n.title, n.body);
       refreshBadges();
     });
-    return () => socket.disconnect();
-  }, [user, push, refreshBadges, clear]);
+    return stop;
+  }, [userId, push, refreshBadges, clear]);
 
   return <Toasts toasts={toasts} dismiss={dismiss} />;
 }

@@ -1,4 +1,5 @@
 import { env } from '../config/env.js';
+import { changed } from './liveService.js';
 import { RoomSession, publicSession } from '../models/RoomSession.js';
 import { ChatMessage, CHAT_MAX_LENGTH, publicMessage } from '../models/ChatMessage.js';
 import { Store } from '../models/Store.js';
@@ -93,6 +94,7 @@ export async function endSession(sessionId, reason = 'seller') {
   clearPresence(id);
   await closeLiveKitRoom(session.livekitRoom);
   logger.info(`room session ${id} ended (${reason})`);
+  changed('rooms', 'mall', 'store');
   return session;
 }
 

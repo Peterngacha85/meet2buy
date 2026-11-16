@@ -63,6 +63,16 @@ export const useAuthStore = create((set) => ({
     return () => set({ user: null, store: null, status: 'ready' });
   },
 
+  /** Quietly re-read the account and shop (an admin approved the shop, changed a role, suspended…). */
+  async refresh() {
+    try {
+      const { user, store } = await unwrap(api.get('/auth/me'));
+      set({ user, store, status: 'ready' });
+    } catch (err) {
+      if (err?.response?.status === 401) set({ user: null, store: null, status: 'ready' });
+    }
+  },
+
   setUser: (user) => set({ user }),
   setStore: (store) => set({ store }),
 }));

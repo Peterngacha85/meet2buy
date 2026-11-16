@@ -18,7 +18,7 @@ import { NotFound } from '../NotFound.jsx';
 export function ShopPage() {
   const { slug } = useParams();
   const [params, setParams] = useSearchParams();
-  const shop = useFetch(() => api.get(`/stores/${slug}`), [slug]);
+  const shop = useFetch(() => api.get(`/stores/${slug}`), [slug], { live: ['mall', 'products', 'rooms'] });
   const wingsReq = useFetch(() => api.get('/stores/wings'));
 
   const [viewing, setViewing] = useState(null); // product in the details dialog

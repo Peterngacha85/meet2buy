@@ -69,7 +69,7 @@ export function CloseRoomDialog({ room, onClose, onClosed }) {
 
 // Admin: every live room right now (doc 02 §3), refreshed every 10 seconds. Watch invisibly or close.
 export function AdminLiveRooms() {
-  const { data, loading, error, reload } = useFetch(() => api.get('/admin/rooms/live'));
+  const { data, loading, error, reload } = useFetch(() => api.get('/admin/rooms/live'), [], { live: ['rooms'] });
   const [closing, setClosing] = useState(null);
 
   useEffect(() => {

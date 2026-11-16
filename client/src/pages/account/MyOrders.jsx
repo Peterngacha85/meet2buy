@@ -20,7 +20,7 @@ export const ORDER_LABEL = {
 
 // Doc 02 §2.4: status, shop and the seller's phone (shown once paid, to arrange delivery).
 export function MyOrders() {
-  const { data, loading, error } = useFetch(() => api.get('/orders/mine'));
+  const { data, loading, error } = useFetch(() => api.get('/orders/mine'), [], { live: ['orders', 'payouts', 'support'] });
   const orders = data?.orders ?? [];
 
   return (

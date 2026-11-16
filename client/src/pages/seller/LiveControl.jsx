@@ -26,7 +26,7 @@ const useElapsed = (since) => clock(useElapsedSeconds(since));
 export function LiveControl() {
   const { store, setStore } = useMyStore();
   const mine = useFetch(() => api.get('/rooms/mine'));
-  const requests = useFetch(() => api.get('/stores/mine/presentation-requests?status=active'));
+  const requests = useFetch(() => api.get('/stores/mine/presentation-requests?status=active'), [], { live: ['requests'] });
   const [params, setParams] = useSearchParams();
   const inviteId = params.get('invite'); // from "Go live & invite" on Demo requests
 

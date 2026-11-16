@@ -142,7 +142,7 @@ export function NewSupportRequest() {
 /** One request, for whoever may see it. `back` is where the list lives for this viewer. */
 export function SupportTicketPage({ back }) {
   const { id } = useParams();
-  const { data, loading, error, setData } = useFetch(() => api.get(`/support/${id}`), [id]);
+  const { data, loading, error, setData } = useFetch(() => api.get(`/support/${id}`), [id], { live: ['support'] });
   return (
     <div className={back === '/support' ? 'mx-auto max-w-2xl px-4 py-8 sm:py-12' : 'mx-auto max-w-3xl'}>
       <Link to={back} className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-navy hover:underline">
@@ -168,7 +168,7 @@ const FILTERS = [
 
 function ListPage({ title, intro, endpoint, base, showStore, showBuyer, filters = FILTERS, wrap = true, defaultFilter = 'active', empty }) {
   const [status, setStatus] = useState(defaultFilter);
-  const { data, loading, error } = useFetch(() => api.get(endpoint, { params: status ? { status } : {} }), [status]);
+  const { data, loading, error } = useFetch(() => api.get(endpoint, { params: status ? { status } : {} }), [status], { live: ['support'] });
   return (
     <div className={wrap ? 'mx-auto max-w-3xl px-4 py-8 sm:py-12' : 'mx-auto max-w-4xl'}>
       <h1 className="text-[28px] font-bold">{title}</h1>
