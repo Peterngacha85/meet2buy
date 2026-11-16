@@ -1,4 +1,5 @@
 import { env } from '../config/env.js';
+import { consent } from '../config/legal.js';
 import { User } from '../models/User.js';
 import { Store, privateStore } from '../models/Store.js';
 import { Product } from '../models/Product.js';
@@ -19,7 +20,7 @@ export async function register(req, res) {
       { field: 'email', message: 'An account with this email already exists' },
     ]);
   }
-  const user = await User.create({ name, email, phone, password, role: 'buyer' });
+  const user = await User.create({ name, email, phone, password, role: 'buyer', ...consent() });
   setAuthCookie(res, user);
   ok(res, { user }, 201);
 }
@@ -34,7 +35,7 @@ export async function registerSeller(req, res) {
   }
   const departments = await resolveDepartments(shop.departments);
 
-  const user = await User.create({ ...account, role: 'seller' });
+  const user = await User.create({ ...account, role: 'seller', ...consent() });
   let store;
   try {
     store = await Store.create({
@@ -97,7 +98,14 @@ export async function googleLogin(req, res) {
     return ok(res, { user, isNew: false });
   }
 
+  // New to Meet2buy: the Terms & Privacy checkbox must be ticked, as on the sign-up form.
+  if (req.body.acceptTerms !== true) {
+    throw new AppError(400, 'Please accept the Terms of Use and Privacy Policy to create your account', [
+      { field: 'acceptTerms', message: 'Tick the box to accept the Terms of Use and Privacy Policy' },
+    ]);
+  }
   user = await User.create({
+    ...consent(),
     name: (google.name || google.email.split('@')[0]).slice(0, 80),
     email: google.email,
     googleId: google.sub,
@@ -111,7 +119,7 @@ export async function googleLogin(req, res) {
 // POST /api/auth/guest { name } — "Continue as a guest": a buyer account with just a name
 export async function guest(req, res) {
   if (req.user && !req.user.isGuest) throw new AppError(409, 'You are already logged in');
-  const user = await User.create({ name: req.body.name, role: 'buyer', isGuest: true });
+  const user = await User.create({ name: req.body.name, role: 'buyer', isGuest: true, ...consent() });
   setAuthCookie(res, user);
   ok(res, { user }, 201);
 }

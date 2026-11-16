@@ -74,6 +74,7 @@ async function shopWithProduct({ stock = 2, price = 2500, variants = [] } = {}) 
       account: { name: 'Grace Achieng', email: 'grace@shop.test', phone: '0722 000 111', password: 'supersecret1' },
       store: { name: 'Grace Fashion', departments: [{ name: 'Shirts', wing: 'home-appliances' }] },
       payout: { type: 'till', tillNumber: '123 456', registeredName: 'GRACE FASHION' },
+      acceptTerms: true,
     });
   const seller = cookieFrom(res);
   const store = res.body.data.store;
@@ -142,14 +143,14 @@ describe('Checkout → STK → payout', () => {
       const o = await Order.findById(order._id);
       return o.status === 'paid' && o.payout ? o : null;
     });
-    // Default 8%: KES 400 commission, KES 4,600 to the seller.
-    expect(paid).toMatchObject({ commissionRate: 8, commissionAmount: 400, payoutAmount: 4600 });
+    // KES 2,500 each is below every price band → default 2%: KES 100 commission, KES 4,900 to the seller.
+    expect(paid).toMatchObject({ commissionRate: 2, commissionAmount: 100, payoutAmount: 4900 });
     const payout = await until(async () => {
       const p = await Payout.findById(paid.payout);
       return p?.conversationId ? p : null; // B2B request accepted by Safaricom
     });
-    expect(payout).toMatchObject({ status: 'processing', amount: 4600, destinationType: 'till', destination: '123456', attempts: 1 });
-    expect(mpesa.b2bPayment).toHaveBeenCalledWith(expect.objectContaining({ destination: '123456', amount: 4600 }));
+    expect(payout).toMatchObject({ status: 'processing', amount: 4900, destinationType: 'till', destination: '123456', attempts: 1 });
+    expect(mpesa.b2bPayment).toHaveBeenCalledWith(expect.objectContaining({ destination: '123456', amount: 4900 }));
 
     await b2bResult(payout.conversationId);
     await until(async () => (await Payout.findById(payout._id)).status === 'completed');
@@ -163,7 +164,7 @@ describe('Checkout → STK → payout', () => {
     const theirs = await request(app).get('/api/orders/store').set('Cookie', seller);
     expect(theirs.body.data.orders[0]).toMatchObject({
       receipt: 'SKA1B2C3D4',
-      payoutAmount: 4600,
+      payoutAmount: 4900,
       delivery: { phone: '254712345678', location: 'Kilimani, Nairobi' },
       payout: { status: 'completed', transactionId: 'TX123' },
     });
@@ -240,6 +241,62 @@ describe('Checkout → STK → payout', () => {
     expect(await Order.findById(order._id)).toMatchObject({ commissionRate: 5, commissionAmount: 125, payoutAmount: 2375 });
   });
 
+  it('issues a numbered receipt on payment: buyer, seller and admin copies, nobody else', async () => {
+    const { seller, admin, product } = await shopWithProduct({ stock: 5 });
+    const buyer = await loginAs('buyer', 'amina@example.com', 'Amina');
+    const pay = async () => {
+      const order = await Order.findById((await checkout(buyer, { productId: product.id })).body.data.order.id);
+      // Not paid yet: no receipt.
+      expect((await request(app).get(`/api/orders/${order.id}/receipt`).set('Cookie', buyer)).status).toBe(409);
+      await stkCallback((await Payment.findById(order.payment)).checkoutRequestId, { amount: 2500, receipt: `RC${order.id.slice(-6)}` });
+      return until(async () => {
+        const o = await Order.findById(order._id);
+        return o.receiptNumber ? o : null;
+      });
+    };
+    const first = await pay();
+    const second = await pay();
+    const year = new Date().getFullYear();
+    expect(first.receiptNumber).toBe(`RCT-${year}-000001`);
+    expect(second.receiptNumber).toBe(`RCT-${year}-000002`);
+
+    const mine = (await request(app).get(`/api/orders/${first.id}/receipt`).set('Cookie', buyer)).body.data.receipt;
+    expect(mine).toMatchObject({
+      copy: 'buyer',
+      receiptNumber: first.receiptNumber,
+      amount: 2500,
+      store: { name: 'Grace Fashion' },
+      items: [{ name: 'Khaki shirt', quantity: 1, unitPrice: 2500, total: 2500 }],
+      payment: { method: 'M-Pesa', phone: '0712 ••• 678' },
+    });
+    expect(mine.settlement).toBeUndefined(); // the buyer doesn't see commission
+
+    const sellerCopy = (await request(app).get(`/api/orders/${first.id}/receipt`).set('Cookie', seller)).body.data.receipt;
+    expect(sellerCopy).toMatchObject({ copy: 'seller', settlement: { commissionRate: 2, commissionAmount: 50, payoutAmount: 2450 } });
+    expect((await request(app).get(`/api/orders/${first.id}/receipt`).set('Cookie', admin)).body.data.receipt.copy).toBe('admin');
+
+    const stranger = await loginAs('buyer', 'baraka@example.com', 'Baraka');
+    expect((await request(app).get(`/api/orders/${first.id}/receipt`).set('Cookie', stranger)).status).toBe(404);
+
+    // Lists carry the receipt number; admins can search by it.
+    expect((await request(app).get('/api/orders/mine').set('Cookie', buyer)).body.data.orders[0].receiptNumber).toMatch(/^RCT-/);
+    const found = (await request(app).get(`/api/admin/transactions?q=${second.receiptNumber}`).set('Cookie', admin)).body.data.orders;
+    expect(found.map((o) => o.id)).toEqual([second.id]);
+  });
+
+  it('picks the commission from the price band of the unit price', async () => {
+    const { product } = await shopWithProduct({ price: 25_000, stock: 5 });
+    const buyer = await loginAs('buyer', 'amina@example.com', 'Amina');
+    // 2 × KES 25,000: the band is chosen per phone (Mid-range, 3%), not by the KES 50,000 total.
+    const order = await Order.findById((await checkout(buyer, { productId: product.id, quantity: 2 })).body.data.order.id);
+    await stkCallback((await Payment.findById(order.payment)).checkoutRequestId, { amount: 50_000 });
+    const paid = await until(async () => {
+      const o = await Order.findById(order._id);
+      return o.status === 'paid' ? o : null;
+    });
+    expect(paid).toMatchObject({ commissionRate: 3, commissionAmount: 1500, payoutAmount: 48_500 });
+  });
+
   it('pays to a Paybill with the seller\'s account number, and records a failed payout', async () => {
     const { product, store } = await shopWithProduct();
     await Store.updateOne(
@@ -259,6 +316,73 @@ describe('Checkout → STK → payout', () => {
       return p.status === 'failed' ? p : null;
     });
     expect(failed.resultDesc).toBe('Insufficient funds');
+  });
+
+  it('sells product variations: own price and stock per variation, reserved and returned exactly', async () => {
+    const { seller, product } = await shopWithProduct({ price: 50_000, stock: 1 });
+    const variants = [
+      { label: 'Storage', options: ['128GB', '256GB'] },
+      { label: 'Colour', options: ['Black', 'Blue'] },
+    ];
+    // A variation that doesn't match the options is refused.
+    const bad = await request(app)
+      .patch(`/api/products/${product.id}`)
+      .set('Cookie', seller)
+      .send({ variants, skus: [{ options: { Storage: '512GB', Colour: 'Black' }, price: 1, stock: 1 }] });
+    expect(bad.status).toBe(400);
+    const dup = await request(app)
+      .patch(`/api/products/${product.id}`)
+      .set('Cookie', seller)
+      .send({
+        variants,
+        skus: [
+          { options: { Storage: '128GB', Colour: 'Black' }, price: 50_000, stock: 1 },
+          { options: { Storage: '128GB', Colour: 'Black' }, price: 52_000, stock: 1 },
+        ],
+      });
+    expect(dup.status).toBe(400);
+
+    const saved = await request(app)
+      .patch(`/api/products/${product.id}`)
+      .set('Cookie', seller)
+      .send({
+        variants,
+        skus: [
+          { options: { Storage: '128GB', Colour: 'Black' }, price: 50_000, stock: 2 },
+          { options: { Storage: '256GB', Colour: 'Blue' }, price: 64_999, stock: 1 },
+        ],
+      });
+    expect(saved.status).toBe(200);
+    const p = saved.body.data.product;
+    expect(p).toMatchObject({ price: 50_000, stock: 3 }); // lowest price, total stock
+    const blue = p.skus.find((s) => s.options.Colour === 'Blue');
+    expect(blue).toMatchObject({ price: 64_999, stock: 1, id: expect.any(String) });
+
+    const buyer = await loginAs('buyer', 'amina@example.com', 'Amina');
+    // Not stocked combination → refused; the stocked one is charged its own price.
+    expect((await checkout(buyer, { productId: p.id, variant: { Storage: '256GB', Colour: 'Black' } })).status).toBe(409);
+    const res = await checkout(buyer, { productId: p.id, variant: { Storage: '256GB', Colour: 'Blue' } });
+    expect(res.status).toBe(201);
+    expect(res.body.data.order).toMatchObject({ amount: 64_999, items: [{ variant: 'Storage: 256GB · Colour: Blue' }] });
+    let stored = await Product.findById(p.id);
+    expect(stored.stock).toBe(2);
+    expect(stored.skus.id(blue.id).stock).toBe(0);
+    // Sold out for the next shopper, even though the 128GB is in stock.
+    const other = await loginAs('buyer', 'baraka@example.com', 'Baraka');
+    expect((await checkout(other, { productId: p.id, variant: { Storage: '256GB', Colour: 'Blue' } })).status).toBe(409);
+
+    // The seller edits the product meanwhile: the variation keeps its id, so a failed payment returns its stock.
+    await request(app)
+      .patch(`/api/products/${p.id}`)
+      .set('Cookie', seller)
+      .send({ skus: p.skus.map((s) => (s.id === blue.id ? { ...s, stock: 0 } : { ...s, price: 49_000 })) });
+    const order = await Order.findById(res.body.data.order.id);
+    await stkCallback((await Payment.findById(order.payment)).checkoutRequestId, { code: 1032 });
+    stored = await until(async () => {
+      const x = await Product.findById(p.id);
+      return x.skus.id(blue.id)?.stock === 1 ? x : null;
+    });
+    expect(stored).toMatchObject({ stock: 3, price: 49_000 });
   });
 
   it('refuses shops whose payout number is not verified, bad numbers, and missing variants', async () => {
@@ -365,6 +489,42 @@ describe('Offers in the room', () => {
     const again = await s.emitWithAck('offer:create', { sessionId: session.id, buyerId: amina.id, productId: product.id, quantity: 1, price: 2800 });
     expect(await b.emitWithAck('offer:decline', { offerId: again.offer.id })).toMatchObject({ ok: true });
     expect((await Offer.findById(again.offer.id)).status).toBe('declined');
+  });
+
+  it('offers a specific variation: its label, its stock, reserved on checkout', async () => {
+    const { seller, product } = await shopWithProduct({ stock: 1, price: 3000 });
+    const { product: p } = (
+      await request(app)
+        .patch(`/api/products/${product.id}`)
+        .set('Cookie', seller)
+        .send({
+          variants: [{ label: 'Size', options: ['M', 'L'] }],
+          skus: [
+            { options: { Size: 'M' }, price: 3000, stock: 4 },
+            { options: { Size: 'L' }, price: 3200, stock: 1 },
+          ],
+        })
+    ).body.data;
+    const large = p.skus.find((x) => x.options.Size === 'L');
+    const { session } = (await request(app).post('/api/rooms/start').set('Cookie', seller)).body.data;
+    const buyerCookie = await loginAs('buyer', 'amina@example.com', 'Amina Wanjiru');
+    const amina = await User.findOne({ email: 'amina@example.com' });
+    const s = await socketAs(seller);
+    await s.emitWithAck('room:join', { sessionId: session.id });
+    const b = await socketAs(buyerCookie);
+    await b.emitWithAck('room:join', { sessionId: session.id });
+
+    const base = { sessionId: session.id, buyerId: amina.id, productId: p.id };
+    expect(await s.emitWithAck('offer:create', { ...base, quantity: 1, price: 3000 })).toMatchObject({ ok: false }); // which one?
+    expect(await s.emitWithAck('offer:create', { ...base, skuId: large.id, quantity: 2, price: 6000 })).toMatchObject({ ok: false }); // only 1 L
+    const sent = await s.emitWithAck('offer:create', { ...base, skuId: large.id, quantity: 1, price: 3000 });
+    expect(sent.offer).toMatchObject({ variant: 'Size: L', product: { price: 3200 } });
+
+    const res = await checkout(buyerCookie, { offerId: sent.offer.id });
+    expect(res.body.data.order).toMatchObject({ amount: 3000, items: [{ variant: 'Size: L' }] });
+    const stored = await Product.findById(p.id);
+    expect(stored.skus.id(large.id).stock).toBe(0);
+    expect(stored.stock).toBe(4);
   });
 
   it('notifies the seller about a new demo request', async () => {

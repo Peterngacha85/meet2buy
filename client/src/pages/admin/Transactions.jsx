@@ -111,7 +111,7 @@ export function AdminTransactions() {
             setParam('q', q.trim());
           }}
         >
-          <Input label="Order number" value={q} onChange={(e) => setQ(e.target.value)} placeholder="M2B-…" />
+          <Input label="Order or receipt no." value={q} onChange={(e) => setQ(e.target.value)} placeholder="M2B-… or RCT-…" />
           <button type="submit" className="sr-only">
             <Search /> Search
           </button>
@@ -178,6 +178,11 @@ export function AdminTransactions() {
                   <td className="px-3 py-2.5">
                     <p className="font-medium">{o.payment?.receipt ?? '—'}</p>
                     <p className="text-xs text-muted">{o.payment?.status}</p>
+                    {o.receiptNumber && (
+                      <Link to={`/receipt/${o.id}`} className="text-xs font-semibold text-navy hover:underline">
+                        {o.receiptNumber}
+                      </Link>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     {o.payout ? (

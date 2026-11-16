@@ -1,5 +1,6 @@
+import { Link } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
-import { Phone, Receipt, Truck } from 'lucide-react';
+import { Phone, Receipt, Truck, FileText } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
@@ -146,8 +147,14 @@ export function SellerOrders() {
                     </dl>
                   </div>
 
-                  {['paid', 'shipped'].includes(o.status) && (
-                    <div className="mt-3 flex justify-end gap-2 border-t border-line pt-3">
+                  {['paid', 'shipped', 'delivered'].includes(o.status) && (
+                    <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-line pt-3">
+                      <Link
+                        to={`/receipt/${o.id}`}
+                        className="mr-auto inline-flex h-9 items-center gap-1.5 rounded-btn px-2 text-sm font-semibold text-navy hover:bg-navy-soft"
+                      >
+                        <FileText className="size-4" aria-hidden /> Receipt{o.receiptNumber ? ` ${o.receiptNumber}` : ''}
+                      </Link>
                       {o.status === 'paid' && (
                         <Button size="sm" variant="outline" onClick={() => mark(o, 'shipped')} loading={busy === `${o.id}-shipped`}>
                           Mark shipped

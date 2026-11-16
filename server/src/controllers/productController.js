@@ -9,6 +9,12 @@ function assertDepartment(store, departmentId) {
   }
 }
 
+/** Keep each variation's id across edits: open orders point at it to give stock back. */
+function body(input) {
+  if (!input.skus) return input;
+  return { ...input, skus: input.skus.map(({ id, ...sku }) => (id ? { _id: id, ...sku } : sku)) };
+}
+
 async function findOwnProduct(req) {
   const product = await Product.findOne({ _id: req.params.id, store: req.store._id });
   if (!product) throw new AppError(404, 'Product not found');
@@ -24,7 +30,7 @@ export async function listMine(req, res) {
 // POST /api/products
 export async function create(req, res) {
   assertDepartment(req.store, req.body.department);
-  const product = await Product.create({ ...req.body, store: req.store._id });
+  const product = await Product.create({ ...body(req.body), store: req.store._id });
   ok(res, { product }, 201);
 }
 
@@ -32,7 +38,10 @@ export async function create(req, res) {
 export async function update(req, res) {
   const product = await findOwnProduct(req);
   if (req.body.department) assertDepartment(req.store, req.body.department);
-  product.set(req.body);
+  const changes = body(req.body);
+  // Removing every option removes the variations too.
+  if (changes.variants?.length === 0 && !changes.skus) changes.skus = [];
+  product.set(changes);
   await product.save();
   ok(res, { product });
 }

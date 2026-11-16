@@ -28,6 +28,7 @@ const { createApp } = await import('../src/app.js');
 const { initSockets } = await import('../src/sockets/index.js');
 const { User } = await import('../src/models/User.js');
 const { RoomSession } = await import('../src/models/RoomSession.js');
+const { Settings } = await import('../src/models/Settings.js');
 const { Order, Payment, Payout } = await import('../src/models/Commerce.js');
 const mpesa = await import('../src/services/mpesa.js');
 
@@ -78,6 +79,7 @@ async function setup() {
       account: { name: 'Grace Achieng', email: 'grace@shop.test', phone: '0722 000 111', password: 'supersecret1' },
       store: { name: 'Grace Fashion', departments: [{ name: 'Shirts', wing: 'home-appliances' }] },
       payout: { type: 'till', tillNumber: '123 456', registeredName: 'GRACE FASHION' },
+      acceptTerms: true,
     });
   const seller = cookieFrom(res);
   const store = res.body.data.store;
@@ -123,10 +125,10 @@ describe('Admin: overview, transactions, settings, users', () => {
 
     expect((await request(app).get('/api/admin/stats').set('Cookie', buyer)).status).toBe(403);
     const s = (await request(app).get('/api/admin/stats').set('Cookie', admin)).body.data.stats;
-    expect(s).toMatchObject({ today: { sales: 2500, commission: 200, orders: 1 }, sellers: 1, pending: 0, buyers: 1 });
+    expect(s).toMatchObject({ today: { sales: 2500, commission: 50, orders: 1 }, sellers: 1, pending: 0, buyers: 1 });
 
     const t = (await request(app).get('/api/admin/transactions?status=sold').set('Cookie', admin)).body.data;
-    expect(t.totals).toEqual({ sales: 2500, commission: 200 });
+    expect(t.totals).toEqual({ sales: 2500, commission: 50 });
     expect(t.orders[0]).toMatchObject({ amount: 2500, payment: { receipt: 'RCPT1' }, store: { name: 'Grace Fashion' }, buyer: { name: 'Amina Wanjiru' } });
   });
 
@@ -136,6 +138,32 @@ describe('Admin: overview, transactions, settings, users', () => {
     expect(bad.status).toBe(400);
     const good = await request(app).patch('/api/admin/settings').set('Cookie', admin).send({ defaultCommissionRate: 10, counterTimeLimitMinutes: 7 });
     expect(good.body.data.settings).toMatchObject({ defaultCommissionRate: 10, counterTimeLimitMinutes: 7 });
+
+    // Price bands: prefilled with the client's four, editable, checked for overlaps and gaps in the open end.
+    const tiers = good.body.data.settings.commissionTiers;
+    expect(tiers.map((t) => [t.min, t.max, t.rate])).toEqual([
+      [5000, 15000, 2],
+      [15001, 40000, 3],
+      [40001, 80000, 4],
+      [80001, null, 5],
+    ]);
+    const overlap = await request(app)
+      .patch('/api/admin/settings')
+      .set('Cookie', admin)
+      .send({ commissionTiers: [{ name: 'A', min: 0, max: 20000, rate: 2 }, { name: 'B', min: 15000, max: null, rate: 4 }] });
+    expect(overlap.status).toBe(400);
+    expect(overlap.body.errors[0]).toMatchObject({ field: 'commissionTiers.1.min' });
+    const openMiddle = await request(app)
+      .patch('/api/admin/settings')
+      .set('Cookie', admin)
+      .send({ commissionTiers: [{ name: 'A', min: 0, max: null, rate: 2 }, { name: 'B', min: 15000, max: null, rate: 4 }] });
+    expect(openMiddle.status).toBe(400);
+    // Sent out of order: saved sorted.
+    const sorted = await request(app)
+      .patch('/api/admin/settings')
+      .set('Cookie', admin)
+      .send({ commissionTiers: [{ name: 'High', min: 50001, max: null, rate: 6 }, { name: 'Low', min: 1, max: 50000, rate: 2.5 }] });
+    expect(sorted.body.data.settings.commissionTiers.map((t) => t.name)).toEqual(['Low', 'High']);
 
     const c = await request(app).patch(`/api/admin/sellers/${store.id}/commission`).set('Cookie', admin).send({ rate: 5 });
     expect(c.body.data.store.commissionRate).toBe(5);
@@ -157,6 +185,62 @@ describe('Admin: overview, transactions, settings, users', () => {
     expect((await request(app).patch(`/api/admin/users/${owner.id}/suspend`).set('Cookie', admin).send({ suspended: true })).status).toBe(403);
     const me = await User.findOne({ email: 'boss@meet2buy.test' });
     expect((await request(app).patch(`/api/admin/users/${me.id}/suspend`).set('Cookie', admin).send({ suspended: true })).status).toBe(400);
+  });
+});
+
+describe('Settings: one-time fixes', () => {
+  it('moves an old untouched 8% default to 2% once, and leaves a rate the admin chose', async () => {
+    await Settings.collection.insertOne({ key: 'global', defaultCommissionRate: 8 });
+    expect((await Settings.getGlobal()).defaultCommissionRate).toBe(2);
+    await Settings.updateOne({ key: 'global' }, { defaultCommissionRate: 8 }); // admin sets 8 on purpose later
+    expect((await Settings.getGlobal()).defaultCommissionRate).toBe(8);
+  });
+  it('leaves a non-default rate alone', async () => {
+    await Settings.collection.insertOne({ key: 'global', defaultCommissionRate: 6 });
+    expect((await Settings.getGlobal()).defaultCommissionRate).toBe(6);
+  });
+});
+
+describe('Admin: managing admins', () => {
+  it('adds admins (new or existing accounts), refuses shop owners, and removes access safely', async () => {
+    const { admin, buyer } = await setup();
+    const owner = await User.create({ name: 'Owner', email: 'owner@meet2buy.test', password: 'supersecret1', role: 'admin', isEnvOwner: true });
+
+    // Brand-new account: created with a temporary password that works.
+    const created = await request(app).post('/api/admin/admins').set('Cookie', admin).send({ email: 'Wanjiru@Meet2buy.test', name: 'Wanjiru Kamau' });
+    expect(created.status).toBe(201);
+    expect(created.body.data).toMatchObject({ created: true, admin: { email: 'wanjiru@meet2buy.test' } });
+    const temp = created.body.data.tempPassword;
+    expect(temp).toHaveLength(14);
+    const login = await request(app).post('/api/auth/login').send({ email: 'wanjiru@meet2buy.test', password: temp });
+    expect(login.body.data.user.role).toBe('admin');
+
+    // New account needs a name.
+    expect((await request(app).post('/api/admin/admins').set('Cookie', admin).send({ email: 'x@meet2buy.test' })).status).toBe(400);
+
+    // Existing shopper: promoted, no password involved; they lose nothing.
+    const promoted = await request(app).post('/api/admin/admins').set('Cookie', admin).send({ email: 'amina@example.com' });
+    expect(promoted.body.data).toMatchObject({ created: false });
+    expect(promoted.body.data.tempPassword).toBeUndefined();
+    expect((await request(app).get('/api/admin/stats').set('Cookie', buyer)).status).toBe(200); // same login, now admin
+
+    // Shop owners can't be admins; existing admins can't be added twice.
+    const shop = await request(app).post('/api/admin/admins').set('Cookie', admin).send({ email: 'grace@shop.test' });
+    expect(shop.status).toBe(409);
+    expect((await request(app).post('/api/admin/admins').set('Cookie', admin).send({ email: 'amina@example.com' })).status).toBe(409);
+
+    const list = (await request(app).get('/api/admin/admins').set('Cookie', admin)).body.data.admins;
+    // Owner first, then by account age.
+    expect(list.map((a) => a.email)).toEqual(['owner@meet2buy.test', 'boss@meet2buy.test', 'amina@example.com', 'wanjiru@meet2buy.test']);
+    expect(list.find((a) => a.email === 'boss@meet2buy.test').isYou).toBe(true);
+
+    // Remove: becomes a shopper (no phone needed); never the owner or yourself.
+    const wanjiru = await User.findOne({ email: 'wanjiru@meet2buy.test' });
+    expect((await request(app).delete(`/api/admin/admins/${wanjiru.id}`).set('Cookie', admin)).status).toBe(200);
+    expect((await User.findById(wanjiru.id)).role).toBe('buyer');
+    expect((await request(app).delete(`/api/admin/admins/${owner.id}`).set('Cookie', admin)).status).toBe(403);
+    const me = await User.findOne({ email: 'boss@meet2buy.test' });
+    expect((await request(app).delete(`/api/admin/admins/${me.id}`).set('Cookie', admin)).status).toBe(400);
   });
 });
 

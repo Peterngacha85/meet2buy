@@ -1,6 +1,6 @@
 import { Package } from 'lucide-react';
 import { imgUrl } from '../../services/uploads.js';
-import { kes } from '../../utils/format.js';
+import { priceLabel } from './variations.js';
 
 export function ProductImage({ src, alt, className = '', w = 480 }) {
   if (!src) {
@@ -25,9 +25,9 @@ export function ProductCard({ product, onOpen }) {
       <ProductImage src={product.images[0]} alt={product.name} className="aspect-square w-full" />
       <div className="flex flex-1 flex-col gap-1 p-3.5">
         <p className="line-clamp-2 font-medium text-ink">{product.name}</p>
-        <p className="mt-auto pt-1 font-display text-lg font-bold text-navy">{kes(product.price)}</p>
+        <p className="mt-auto pt-1 font-display text-lg font-bold text-navy">{priceLabel(product)}</p>
         <p className={`text-xs font-medium ${soldOut ? 'text-danger' : 'text-muted'}`}>
-          {soldOut ? 'Out of stock' : product.stock <= 3 ? `Only ${product.stock} left` : 'In stock'}
+          {soldOut ? 'Out of stock' : product.skus?.length ? `${product.variants.map((v) => `${v.options.length} ${v.label.toLowerCase()}`).join(' · ')}` : product.stock <= 3 ? `Only ${product.stock} left` : 'In stock'}
         </p>
       </div>
     </button>

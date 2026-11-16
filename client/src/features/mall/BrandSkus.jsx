@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { ChevronRight, Video } from 'lucide-react';
 import { ShopSign } from './ShopSign.jsx';
 import { ProductImage } from './ProductCard.jsx';
-import { kes } from '../../utils/format.js';
+import { priceLabel } from './variations.js';
 
 /** One SKU in a brand's line-up: tap the card for details, or go straight to a demonstration. */
 function SkuCard({ product, onOpen, onDemo }) {
@@ -13,9 +13,9 @@ function SkuCard({ product, onOpen, onDemo }) {
         <ProductImage src={product.images[0]} alt={product.name} w={360} className="aspect-square w-full" />
         <span className="flex flex-1 flex-col gap-0.5 px-3 pt-2.5">
           <span className="line-clamp-2 text-sm font-medium text-ink group-hover:text-navy">{product.name}</span>
-          <span className="mt-auto pt-1 font-display font-bold text-navy">{kes(product.price)}</span>
+          <span className="mt-auto pt-1 font-display font-bold text-navy">{priceLabel(product)}</span>
           <span className={`text-xs font-medium ${soldOut ? 'text-danger' : 'text-muted'}`}>
-            {soldOut ? 'Out of stock' : product.stock <= 3 ? `Only ${product.stock} left` : 'In stock'}
+            {soldOut ? 'Out of stock' : product.skus?.length ? `${product.variants.map((v) => `${v.options.length} ${v.label.toLowerCase()}`).join(' · ')}` : product.stock <= 3 ? `Only ${product.stock} left` : 'In stock'}
           </span>
         </span>
       </button>

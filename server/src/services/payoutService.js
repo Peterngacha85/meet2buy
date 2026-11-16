@@ -1,16 +1,20 @@
 import { Order, Payout } from '../models/Commerce.js';
 import { Store } from '../models/Store.js';
-import { Settings } from '../models/Settings.js';
+import { Settings, tierFor } from '../models/Settings.js';
 import { logger } from '../utils/logger.js';
 import { notifyStoreOwner } from './notifyService.js';
 import { b2bPayment, isB2BConfigured, onSimulatedB2BResult, transactionStatus } from './mpesa.js';
 
 // Paying the seller (doc 08 §3, §6, §7). Status only moves forward: pending → processing → completed | failed.
 
-/** Commission snapshot for a paid order (doc 08 §4). */
+/**
+ * Commission snapshot for a paid order (doc 08 §4). Rate: the shop's own rate if an admin set one,
+ * else the price band of the item's unit price, else the default rate.
+ */
 export async function computeSplit(order) {
   const [store, settings] = await Promise.all([Store.findById(order.store).select('commissionRate'), Settings.getGlobal()]);
-  const rate = store?.commissionRate ?? settings.defaultCommissionRate;
+  const unitPrice = order.items?.[0]?.unitPrice ?? order.amount;
+  const rate = store?.commissionRate ?? tierFor(settings.commissionTiers, unitPrice)?.rate ?? settings.defaultCommissionRate;
   const commissionAmount = Math.round((order.amount * rate) / 100);
   const payoutFee = settings.deductPayoutFeeFromSeller ? settings.payoutFee : 0;
   return { commissionRate: rate, commissionAmount, payoutFee, payoutAmount: order.amount - commissionAmount - payoutFee };

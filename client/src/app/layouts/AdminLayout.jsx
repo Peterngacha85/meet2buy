@@ -1,4 +1,4 @@
-import { ArrowLeftRight, LayoutDashboard, Radio, Settings, Store, Users, Wallet } from 'lucide-react';
+import { ArrowLeftRight, LayoutDashboard, LifeBuoy, Radio, Settings, ShieldCheck, Store, Users, Wallet } from 'lucide-react';
 import { DashboardLayout } from './DashboardLayout.jsx';
 
 const items = [
@@ -7,7 +7,9 @@ const items = [
   { to: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/admin/payouts', label: 'Payouts', icon: Wallet },
   { to: '/admin/live-rooms', label: 'Live rooms', icon: Radio },
+  { to: '/admin/support', label: 'After-sales', icon: LifeBuoy, badgeKey: 'support' },
   { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/admins', label: 'Admins', icon: ShieldCheck },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

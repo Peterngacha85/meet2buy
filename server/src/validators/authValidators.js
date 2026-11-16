@@ -20,20 +20,28 @@ export const phone = z
     return normalised;
   });
 
-export const registerSchema = z.object({ name, email, phone, password });
+// The Terms & Privacy checkbox. Required wherever a new account is created.
+export const acceptTerms = z.literal(true, { error: 'Please accept the Terms of Use and Privacy Policy' });
+
+export const registerSchema = z.object({ name, email, phone, password, acceptTerms });
+
+// The seller's account step (acceptTerms is asked once, at the end of the wizard).
+export const accountSchema = z.object({ name, email, phone, password });
 
 export const loginSchema = z.object({
   email,
   password: z.string().min(1, 'Password is required'),
 });
 
-export const guestSchema = z.object({ name });
+export const guestSchema = z.object({ name, acceptTerms });
 
 // Turn a guest into a full account (keeps their demo requests, orders, etc.).
 export const saveGuestSchema = z.object({ email, phone, password });
 
 export const googleSchema = z.object({
   credential: z.string().min(20, 'Missing Google credential').max(5000),
+  // Needed only when this Google account is new to Meet2buy (checked in the controller).
+  acceptTerms: z.boolean().optional(),
 });
 
 // Which of the two is needed depends on the account (checked in the controller).

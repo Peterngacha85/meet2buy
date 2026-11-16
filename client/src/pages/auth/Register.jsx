@@ -7,12 +7,14 @@ import { apiError } from '../../services/api.js';
 import { homeForRole } from '../../store/authStore.js';
 import { AuthCard, FormError } from './AuthCard.jsx';
 import { GoogleButton } from '../../features/auth/GoogleButton.jsx';
+import { TermsCheckbox, TermsGate } from '../../features/auth/TermsCheckbox.jsx';
 
 export function Register() {
   const { user, status, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState({ message: '', fieldErrors: {} });
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,7 +27,7 @@ export function Register() {
     setSubmitting(true);
     setError({ message: '', fieldErrors: {} });
     try {
-      await register(form);
+      await register({ ...form, acceptTerms: accepted });
       navigate('/', { replace: true });
     } catch (err) {
       setError(apiError(err));
@@ -50,13 +52,14 @@ export function Register() {
         </>
       }
     >
+      <TermsGate open={accepted}>
       <GoogleButton
         text="signup_with"
         onCredential={async (credential) => {
           setSubmitting(true);
           setError({ message: '', fieldErrors: {} });
           try {
-            const u = await loginWithGoogle(credential);
+            const u = await loginWithGoogle(credential, accepted);
             navigate(homeForRole(u.role), { replace: true });
           } catch (err) {
             setError(apiError(err));
@@ -65,6 +68,7 @@ export function Register() {
         }}
         onError={(message) => setError({ message, fieldErrors: {} })}
       />
+      </TermsGate>
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <FormError message={Object.keys(error.fieldErrors).length ? '' : error.message} />
         <Input
@@ -109,7 +113,15 @@ export function Register() {
           error={error.fieldErrors.password}
           required
         />
-        <Button type="submit" className="w-full" loading={submitting}>
+        <TermsCheckbox
+          checked={accepted}
+          onChange={(v) => {
+            setAccepted(v);
+            setError((e) => ({ ...e, fieldErrors: { ...e.fieldErrors, acceptTerms: undefined } }));
+          }}
+          error={error.fieldErrors.acceptTerms}
+        />
+        <Button type="submit" className="w-full" loading={submitting} disabled={!accepted}>
           Create account
         </Button>
       </form>

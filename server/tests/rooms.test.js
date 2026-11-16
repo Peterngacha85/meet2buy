@@ -47,6 +47,7 @@ async function openShop({ approve = true } = {}) {
       account: { name: 'Grace Achieng', email: 'grace@hisense.test', phone: '0722 000 111', password: 'supersecret1' },
       store: { name: 'Hisense', departments: [{ name: 'TVs', wing: 'home-appliances' }] },
       payout: { type: 'till', tillNumber: '123 456', registeredName: 'HISENSE KENYA' },
+      acceptTerms: true,
     });
   const seller = cookieFrom(res);
   const store = res.body.data.store;

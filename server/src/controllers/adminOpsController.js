@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Order, Payment, Payout } from '../models/Commerce.js';
 import { Store } from '../models/Store.js';
 import { User } from '../models/User.js';
@@ -8,7 +9,8 @@ import { QueueEntry } from '../models/QueueEntry.js';
 import { createRoomToken } from '../services/livekit.js';
 import { endSession, loadLiveSession } from '../services/roomService.js';
 import { computeSplit, createPayout, sendPayout } from '../services/payoutService.js';
-import { releaseStock } from '../services/orderService.js';
+import { releaseStock, reserveStock } from '../services/orderService.js';
+import { issueReceipt } from '../services/receiptService.js';
 import { isSimulated, transactionStatus } from '../services/mpesa.js';
 import { notifyUser } from '../services/notifyService.js';
 import { presenceOf } from '../sockets/presence.js';
@@ -124,7 +126,11 @@ export async function transactions(req, res) {
   const { status, store, q, from, to } = req.query;
   if (typeof status === 'string' && status) filter.status = status === 'sold' ? { $in: SOLD } : status;
   if (typeof store === 'string' && /^[a-f\d]{24}$/i.test(store)) filter.store = store;
-  if (typeof q === 'string' && q.trim()) filter.orderNumber = { $regex: escapeRegex(q.trim().toUpperCase()) };
+  if (typeof q === 'string' && q.trim()) {
+    // Order number or Meet2buy receipt number.
+    const rx = { $regex: escapeRegex(q.trim().toUpperCase()) };
+    filter.$or = [{ orderNumber: rx }, { receiptNumber: rx }];
+  }
   if (from || to) {
     filter.createdAt = {};
     if (from && !Number.isNaN(Date.parse(from))) filter.createdAt.$gte = new Date(from);
@@ -154,6 +160,7 @@ export async function transactions(req, res) {
         adminNote: o.adminNote,
         createdAt: o.createdAt,
         paidAt: o.paidAt,
+        receiptNumber: o.receiptNumber,
         amount: o.amount,
         commissionRate: o.commissionRate,
         commissionAmount: o.commissionAmount,
@@ -190,8 +197,7 @@ export async function resolveOrder(req, res) {
     // Late payment after the order was cancelled: the stock went back, take it again if it is still there.
     const items = order.items;
     for (const i of items) {
-      const took = await Product.updateOne({ _id: i.product, stock: { $gte: i.quantity } }, { $inc: { stock: -i.quantity } });
-      if (took.modifiedCount !== 1) throw new AppError(409, `${i.name} is out of stock now. Refund the buyer instead.`);
+      if (!(await reserveStock(i.product, i.quantity, i.sku))) throw new AppError(409, `${i.name} is out of stock now. Refund the buyer instead.`);
     }
     order.stockReleased = false;
   }
@@ -199,6 +205,7 @@ export async function resolveOrder(req, res) {
   Object.assign(order, { status: 'paid', paidAt: order.paidAt ?? payment.paidAt ?? new Date(), adminNote: note, ...split });
   await order.save();
   if (payment.status !== 'success') await Payment.updateOne({ _id: payment._id }, { status: 'success' });
+  await issueReceipt(order._id);
   if (order.payoutAmount >= 1) {
     const payout = await createPayout(order);
     if (payout) await sendPayout(payout._id);
@@ -288,7 +295,7 @@ export async function retryPayout(req, res) {
 
 // ---- Settings & commission ----
 
-const SETTINGS_FIELDS = ['defaultCommissionRate', 'deductPayoutFeeFromSeller', 'payoutFee', 'offerExpiryMinutes', 'counterTimeLimitMinutes'];
+const SETTINGS_FIELDS = ['defaultCommissionRate', 'commissionTiers', 'deductPayoutFeeFromSeller','payoutFee', 'offerExpiryMinutes', 'counterTimeLimitMinutes'];
 const settingsView = (s) => Object.fromEntries(SETTINGS_FIELDS.map((k) => [k, s[k]]));
 
 // GET /api/admin/settings
@@ -309,6 +316,66 @@ export async function setCommission(req, res) {
   const store = await Store.findByIdAndUpdate(req.params.storeId, { commissionRate: req.body.rate }, { returnDocument: 'after' });
   if (!store) throw new AppError(404, 'Shop not found');
   ok(res, { store: { id: store.id, commissionRate: store.commissionRate } });
+}
+
+// ---- Admins (doc 06) ----
+
+const adminView = (u, me) => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+  status: u.status,
+  isEnvOwner: u.isEnvOwner,
+  isYou: u._id.equals(me._id),
+  createdAt: u.createdAt,
+});
+
+// Readable temporary password: no look-alike characters (0/O, 1/l/I).
+function tempPassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.randomBytes(14);
+  return [...bytes].map((b) => chars[b % chars.length]).join('');
+}
+
+// GET /api/admin/admins
+export async function listAdmins(req, res) {
+  const admins = await User.find({ role: 'admin' }).sort({ isEnvOwner: -1, createdAt: 1 });
+  ok(res, { admins: admins.map((u) => adminView(u, req.user)) });
+}
+
+// POST /api/admin/admins { email, name? } — promote an existing account, or create one with a temporary password
+export async function addAdmin(req, res) {
+  const { email, name } = req.body;
+  const existing = await User.findOne({ email });
+
+  if (existing) {
+    if (existing.role === 'admin') throw new AppError(409, `${email} is already an admin`, [{ field: 'email', message: 'Already an admin' }]);
+    if (existing.role === 'seller' || (await Store.exists({ owner: existing._id }))) {
+      throw new AppError(409, 'This email owns a shop. Use a different email for the admin account.', [
+        { field: 'email', message: 'This email owns a shop — use another email' },
+      ]);
+    }
+    existing.role = 'admin';
+    existing.status = 'active';
+    await existing.save();
+    return ok(res, { admin: adminView(existing, req.user), created: false });
+  }
+
+  if (!name) throw new AppError(400, "Enter the new admin's name", [{ field: 'name', message: 'Enter their name' }]);
+  const password = tempPassword();
+  const user = await User.create({ name, email, password, role: 'admin' });
+  ok(res, { admin: adminView(user, req.user), created: true, tempPassword: password }, 201);
+}
+
+// DELETE /api/admin/admins/:id — remove admin access (the account stays, as a shopper)
+export async function removeAdmin(req, res) {
+  const user = await User.findOne({ _id: req.params.id, role: 'admin' });
+  if (!user) throw new AppError(404, 'Admin not found');
+  if (user.isEnvOwner) throw new AppError(403, 'The owner admin is managed from the server settings (ADMIN_EMAIL) and cannot be removed here');
+  if (user._id.equals(req.user._id)) throw new AppError(400, 'You cannot remove your own admin access');
+  user.role = 'buyer';
+  await user.save();
+  ok(res, null);
 }
 
 // ---- Users ----

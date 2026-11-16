@@ -1,4 +1,4 @@
-import { LayoutDashboard, MessageSquareText, Package, Radio, Receipt, Store, Wallet } from 'lucide-react';
+import { LayoutDashboard, LifeBuoy, MessageSquareText, Package, Radio, Receipt, Store, Wallet } from 'lucide-react';
 import { DashboardLayout } from './DashboardLayout.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 
@@ -8,6 +8,7 @@ const items = [
   { to: '/seller/products', label: 'Products', icon: Package },
   { to: '/seller/requests', label: 'Demo requests', icon: MessageSquareText, badgeKey: 'requests' },
   { to: '/seller/orders', label: 'Orders', icon: Receipt, badgeKey: 'orders' },
+  { to: '/seller/support', label: 'After-sales', icon: LifeBuoy, badgeKey: 'support' },
   { to: '/seller/payouts', label: 'Payout settings', icon: Wallet },
 ];
 

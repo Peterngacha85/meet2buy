@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { homeForRole } from '../../store/authStore.js';
 import { NotificationCenter } from '../../features/notify/NotificationCenter.jsx';
+import { DEVELOPER } from '../../config/legal.js';
 
 function AccountMenu() {
   const { user, status, logout } = useAuth();
@@ -96,7 +97,28 @@ export function PublicLayout() {
           <Link to="/" aria-label="Meet2buy home">
             <FullLogo inverse className="w-56" />
           </Link>
-          <p className="text-sm">© {new Date().getFullYear()} Meet2buy. Payments by M-Pesa.</p>
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
+            <Link to="/terms" className="hover:text-white hover:underline">
+              Terms of Use
+            </Link>
+            <Link to="/privacy" className="hover:text-white hover:underline">
+              Privacy Policy
+            </Link>
+            <Link to="/open-store" className="hover:text-white hover:underline">
+              Sell on Meet2buy
+            </Link>
+          </nav>
+        </div>
+        <div className="border-t border-white/10">
+          <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 text-xs text-white/60 sm:flex-row sm:justify-between">
+            <p>© {new Date().getFullYear()} Meet2buy. Payments by M-Pesa.</p>
+            <p>
+              Developed by{' '}
+              <a href={DEVELOPER.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-white/85 hover:text-white hover:underline">
+                {DEVELOPER.name}
+              </a>
+            </p>
+          </div>
         </div>
       </footer>
     </div>

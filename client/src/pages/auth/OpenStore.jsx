@@ -12,6 +12,7 @@ import { useFetch } from '../../hooks/useFetch.js';
 import { api, apiError } from '../../services/api.js';
 import { homeForRole } from '../../store/authStore.js';
 import { AuthCard, FormError } from './AuthCard.jsx';
+import { TermsCheckbox } from '../../features/auth/TermsCheckbox.jsx';
 
 const STEPS = [
   { key: 'account', title: 'Your account', subtitle: 'The person who runs the shop.' },
@@ -38,6 +39,7 @@ export function OpenStore() {
   const [account, setAccount] = useState({ name: '', email: '', phone: '', password: '' });
   const [shop, setShop] = useState({ name: '', description: '', departments: [] });
   const [payout, setPayout] = useState(emptyPayout);
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState({ message: '', fields: splitErrors({}) });
   const [submitting, setSubmitting] = useState(false);
 
@@ -98,11 +100,13 @@ export function OpenStore() {
         account,
         store: { ...shop, departments: shop.departments.map(({ name, wing }) => ({ name, wing })) },
         payout: payoutBody(payout),
+        acceptTerms: accepted,
       });
       navigate('/seller', { replace: true });
     } catch (err) {
       const { message, fieldErrors } = apiError(err);
       const fields = splitErrors(fieldErrors);
+      if (fieldErrors.acceptTerms) fields.payout.acceptTerms = fieldErrors.acceptTerms;
       const firstBad = STEPS.findIndex((s) => Object.keys(fields[s.key]).length);
       if (firstBad >= 0) setStep(firstBad);
       setError({ message: Object.keys(fieldErrors).length ? '' : message, fields });
@@ -203,7 +207,15 @@ export function OpenStore() {
           </>
         )}
 
-        {current.key === 'payout' && <PayoutFields value={payout} onChange={setPayout} errors={fe} />}
+        {current.key === 'payout' && (
+          <>
+            <PayoutFields value={payout} onChange={setPayout} errors={fe} />
+            <TermsCheckbox checked={accepted} onChange={setAccepted} error={fe.acceptTerms} />
+            <p className="text-xs text-muted">
+              Sellers also agree to take payment only through Meet2buy, to deliver what they sell and to answer after-sales requests (Terms §5).
+            </p>
+          </>
+        )}
 
         <div className="flex gap-3 pt-2">
           {step > 0 && (
@@ -211,7 +223,13 @@ export function OpenStore() {
               <ArrowLeft className="size-4" aria-hidden /> Back
             </Button>
           )}
-          <Button type="submit" variant={step === STEPS.length - 1 ? 'accent' : 'primary'} className="flex-1" loading={submitting}>
+          <Button
+            type="submit"
+            variant={step === STEPS.length - 1 ? 'accent' : 'primary'}
+            className="flex-1"
+            loading={submitting}
+            disabled={step === STEPS.length - 1 && !accepted}
+          >
             {step === STEPS.length - 1 ? (
               'Submit my shop for review'
             ) : (

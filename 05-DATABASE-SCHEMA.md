@@ -52,7 +52,8 @@ Phone is required for sellers and for buyers who register with email + password.
 | description | String | |
 | price | Number | KES integer |
 | images | [String] | max 5 |
-| variants | [{ label, options: [String] }] | e.g. Size: S/M/L |
+| variants | [{ label, options: [String] }] | option groups, e.g. Storage: 128GB/256GB, Colour: Black/Blue (max 3) |
+| skus | [{ _id, options: Map, price, stock }] | variations a seller stocks, each with its own price and stock (max 60). With skus, `price` = lowest sku price and `stock` = total, kept in step on save and on every atomic stock change |
 | stock | Number | |
 | isVisible | Boolean | |
 
@@ -120,7 +121,7 @@ Offer transitions: `pending → in_checkout` (checkout started) → `paid`, or b
 | buyer, store | ObjectId | |
 | session | ObjectId \| null | room where it was bought |
 | offer | ObjectId \| null | |
-| items | [{ product, name, variant, quantity, unitPrice }] | snapshot |
+| items | [{ product, name, variant, sku, quantity, unitPrice }] | snapshot; `sku` = the variation whose stock was reserved |
 | amount | Number | total KES charged |
 | commissionRate | Number | % **snapshot at payment time** |
 | commissionAmount | Number | KES |
@@ -131,6 +132,8 @@ Offer transitions: `pending → in_checkout` (checkout started) → `paid`, or b
 | holdReason | String | e.g. `amount_mismatch`, for admin review |
 | payment | ObjectId → payments | |
 | payout | ObjectId → payouts | |
+| receiptNumber | String | `RCT-2026-000123`, issued when the payment is confirmed (running number from `counters`) |
+| receiptIssuedAt | Date | |
 
 ## payments (buyer → Meet2buy, STK push)
 | Field | Type | Notes |
@@ -165,11 +168,31 @@ Offer transitions: `pending → in_checkout` (checkout started) → `paid`, or b
 ## settings (single document)
 | Field | Type | Notes |
 |-------|------|-------|
-| defaultCommissionRate | Number | % e.g. 8 |
+| commissionTiers | [{ name, min, max, rate }] | commission by unit selling price. Default: Entry-level 5,000–15,000 2%, Mid-range 15,001–40,000 3%, Premium 40,001–80,000 4%, Flagship 80,001+ 5%. A shop's own `commissionRate` overrides |
+| defaultCommissionRate | Number | % for prices outside every band, default 2 |
 | deductPayoutFeeFromSeller | Boolean | see doc 08 |
 | offerExpiryMinutes | Number | default 10 |
 | counterTimeLimitMinutes | Number | default 5 |
 | wings | [{ name, slug, departments: [String] }] | mall wings + suggested department names. Default: Phones & Tablets, Home Appliances |
+
+## supportTickets (after-sales)
+| Field | Type | Notes |
+|-------|------|-------|
+| ticketNumber | String | unique, `AS-000123` |
+| order, buyer, store | ObjectId | + `orderNumber`, `receiptNumber`, `productName` snapshot |
+| category | String | `not_delivered` \| `faulty` \| `damaged` \| `wrong_item` \| `warranty` \| `refund_return` \| `other` |
+| status | String | `open` → `in_progress` (seller replied) → `resolved` / `escalated` (Meet2buy) → `closed` |
+| messages | [{ author, role, name, body, images, createdAt }] | role `buyer` \| `seller` \| `admin` \| `system`. Kept for reference |
+| escalatedAt, resolvedAt, closedAt, lastActivityAt | Date | |
+
+## counters
+`{ _id: 'receipt' | 'ticket', seq }` — running numbers for receipts and after-sales requests.
+
+## users: consent
+`termsAcceptedAt`, `termsVersion` — when and which version of the Terms & Privacy Policy the user accepted at sign-up.
+
+## chatMessages: retention
+Deleted automatically 90 days after they are sent (TTL index on `createdAt`), as stated in the Privacy Policy.
 
 ## mpesaLogs
 Raw copy of every request sent to and callback received from Daraja: `{ type, direction, payload, relatedId }`. Never edited — used for reconciliation and support.

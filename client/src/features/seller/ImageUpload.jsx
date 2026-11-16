@@ -84,13 +84,13 @@ export function ImageUpload({ label, hint, kind, value, onChange, aspect = 'aspe
 }
 
 /** Up to `max` product photos. The first photo is the cover. */
-export function ImageList({ value, onChange, max = 5, kind = 'product' }) {
+export function ImageList({ value, onChange, max = 5, kind = 'product', label = 'Photos', cover = true }) {
   const { input, busy, error, picker } = useUploader(kind, (url) => onChange((list) => [...list, url].slice(0, max)));
 
   return (
     <div>
       <p className="mb-1.5 text-sm font-medium text-ink">
-        Photos <span className="font-normal text-muted">({value.length}/{max}, first is the cover)</span>
+        {label} <span className="font-normal text-muted">({value.length}/{max}{cover ? ', first is the cover' : ''})</span>
       </p>
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {value.map((src, i) => (
@@ -104,7 +104,7 @@ export function ImageList({ value, onChange, max = 5, kind = 'product' }) {
             >
               <Trash2 className="size-3.5" />
             </button>
-            {i === 0 && (
+            {cover && i === 0 && (
               <span className="absolute bottom-1 left-1 rounded bg-navy px-1.5 py-0.5 text-[10px] font-semibold text-white">Cover</span>
             )}
           </li>

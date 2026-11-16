@@ -212,11 +212,11 @@ function WaitedFor({ since }) {
 
 /** Seller's counter: who is up, their timer, and the waiting line (doc 07 §4). */
 const OFFER_STATUS = {
-  pending: ['Offer sent — waiting for them to pay', 'text-muted'],
+  pending: ['PAY button is on their screen — waiting for them to pay', 'text-muted'],
   in_checkout: ['Paying with M-Pesa now…', 'text-orange-ink'],
   paid: ['Paid ✓', 'text-success'],
-  declined: ['They declined the offer', 'text-danger'],
-  expired: ['Offer expired', 'text-muted'],
+  declined: ['They tapped “No thanks”', 'text-danger'],
+  expired: ['PAY button expired — send it again', 'text-muted'],
 };
 
 export function SellerQueueCard({ rt, products = [] }) {
@@ -275,9 +275,10 @@ export function SellerQueueCard({ rt, products = [] }) {
                 {kes(lastOffer.price)} for {lastOffer.product?.name}: {OFFER_STATUS[lastOffer.status]?.[0] ?? lastOffer.status}
               </p>
             )}
-            <Button size="sm" variant="primary" className="mt-3" onClick={() => setOffering(true)} disabled={!products.length}>
-              <Tag className="size-4" aria-hidden /> Send an offer
+            <Button variant="accent" className="mt-3 w-full" onClick={() => setOffering(true)} disabled={!products.length}>
+              <Tag className="size-4" aria-hidden /> Send PAY button
             </Button>
+            <p className="mt-1.5 text-xs text-muted">A PAY pop-up appears on their screen. Don't read out your Till or Paybill.</p>
           </>
         ) : (
           <p className="text-sm text-muted">Nobody at the counter. Call the next shopper when you're ready.</p>

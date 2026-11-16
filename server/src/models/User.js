@@ -26,11 +26,12 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      // Sellers need a phone. Buyers too, except Google sign-ups and guests (they give their M-Pesa
-      // number at checkout). The .env admin may not have one.
+      // Sellers need a phone (payout and delivery contact). Shoppers who register give one on the form
+      // (registerSchema); Google sign-ups, guests and former admins may not have one and give their
+      // M-Pesa number at checkout instead. Admins don't need one.
       required: [
         function phoneRequired() {
-          return this.role === 'seller' || (this.role === 'buyer' && !this.googleId && !this.isGuest);
+          return this.role === 'seller';
         },
         'Phone number is required',
       ],
@@ -57,6 +58,9 @@ const userSchema = new mongoose.Schema(
     isEnvOwner: { type: Boolean, default: false },
     // "Continue as a guest": a buyer with only a name. Can be saved as a full account later.
     isGuest: { type: Boolean, default: false },
+    // Terms of Use & Privacy Policy accepted at sign-up (Kenya Data Protection Act: record of consent).
+    termsAcceptedAt: { type: Date, default: null },
+    termsVersion: { type: String, default: null },
   },
   {
     timestamps: true,

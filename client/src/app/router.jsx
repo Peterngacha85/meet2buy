@@ -23,7 +23,17 @@ import { AdminTransactions } from '../pages/admin/Transactions.jsx';
 import { AdminPayouts } from '../pages/admin/Payouts.jsx';
 import { AdminSettings } from '../pages/admin/Settings.jsx';
 import { AdminUsers } from '../pages/admin/Users.jsx';
+import { AdminAdmins } from '../pages/admin/Admins.jsx';
 import { NotFound } from '../pages/NotFound.jsx';
+import { PrivacyPolicy, TermsOfUse } from '../pages/legal/Legal.jsx';
+import { ReceiptPage } from '../pages/receipt/Receipt.jsx';
+import {
+  AdminSupportList,
+  BuyerSupportList,
+  NewSupportRequest,
+  SellerSupportList,
+  SupportTicketPage,
+} from '../pages/support/SupportPages.jsx';
 
 
 // The live room pages carry the video SDK, so they load only when opened.
@@ -32,6 +42,8 @@ const liveControl = async () => ({ Component: (await import('../pages/seller/Liv
 const watchRoom = async () => ({ Component: (await import('../pages/admin/WatchRoom.jsx')).AdminWatchRoom });
 
 export const router = createBrowserRouter([
+  // Receipts stand alone (no header/footer) so they print cleanly. Buyer, seller or admin.
+  { element: <RequireRole />, children: [{ path: '/receipt/:orderId', element: <ReceiptPage /> }] },
   {
     element: <PublicLayout />,
     children: [
@@ -41,11 +53,16 @@ export const router = createBrowserRouter([
       { path: '/login', element: <Login /> },
       { path: '/register', element: <Register /> },
       { path: '/open-store', element: <OpenStore /> },
+      { path: '/terms', element: <TermsOfUse /> },
+      { path: '/privacy', element: <PrivacyPolicy /> },
       {
         element: <RequireRole />,
         children: [
           { path: '/account', element: <Account /> },
           { path: '/orders', element: <MyOrders /> },
+          { path: '/orders/:orderId/help', element: <NewSupportRequest /> },
+          { path: '/support', element: <BuyerSupportList /> },
+          { path: '/support/:id', element: <SupportTicketPage back="/support" /> },
         ],
       },
       { path: '*', element: <NotFound /> },
@@ -63,6 +80,8 @@ export const router = createBrowserRouter([
           { path: 'products', element: <SellerProducts /> },
           { path: 'requests', element: <DemoRequests /> },
           { path: 'orders', element: <SellerOrders /> },
+          { path: 'support', element: <SellerSupportList /> },
+          { path: 'support/:id', element: <SupportTicketPage back="/seller/support" /> },
           { path: 'payouts', element: <SellerPayouts /> },
           { path: 'live', lazy: liveControl },
         ],
@@ -83,6 +102,9 @@ export const router = createBrowserRouter([
           { path: 'live-rooms', element: <AdminLiveRooms /> },
           { path: 'live-rooms/:sessionId', lazy: watchRoom },
           { path: 'users', element: <AdminUsers /> },
+          { path: 'admins', element: <AdminAdmins /> },
+          { path: 'support', element: <AdminSupportList /> },
+          { path: 'support/:id', element: <SupportTicketPage back="/admin/support" /> },
           { path: 'settings', element: <AdminSettings /> },
         ],
       },

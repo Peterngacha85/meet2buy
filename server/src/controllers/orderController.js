@@ -4,6 +4,7 @@ import { Store } from '../models/Store.js';
 import { User } from '../models/User.js';
 import { applyStkResult, checkout as runCheckout, resolvePending } from '../services/orderService.js';
 import { isSimulated } from '../services/mpesa.js';
+import { receiptFor } from '../services/receiptService.js';
 import { AppError } from '../utils/AppError.js';
 import { ok } from '../utils/respond.js';
 
@@ -27,6 +28,7 @@ async function buyerView(order) {
     delivery: order.delivery,
     createdAt: order.createdAt,
     paidAt: order.paidAt,
+    receiptNumber: order.receiptNumber,
     store: store ? { name: store.name, slug: store.slug, logo: store.logo, brandColor: store.brandColor, phone: owner?.phone ?? null } : null,
     payment: payment ? { status: payment.status, receipt: payment.mpesaReceipt, message: payment.resultDesc, phone: payment.phone } : null,
   };
@@ -97,10 +99,16 @@ export async function storeOrders(req, res) {
         receipt: receipt.get(o.payment?.toString()) ?? null,
         payout: p ? { status: p.status, amount: p.amount, transactionId: p.transactionId } : null,
         paidAt: o.paidAt,
+        receiptNumber: o.receiptNumber,
         createdAt: o.createdAt,
       };
     }),
   });
+}
+
+// GET /api/orders/:id/receipt — the buyer's, the seller's or the admin copy
+export async function receipt(req, res) {
+  ok(res, { receipt: await receiptFor(req.user, req.params.id) });
 }
 
 // PATCH /api/orders/:id/fulfilment { status: shipped | delivered }

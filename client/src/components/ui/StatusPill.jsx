@@ -15,6 +15,12 @@ const styles = {
   cancelled: 'bg-bg-soft text-muted',
   shipped: 'bg-navy-soft text-navy',
   delivered: 'bg-[#E6F4EA] text-success',
+  // After-sales requests
+  open: 'bg-[#FFF4D6] text-[#8A6100]',
+  in_progress: 'bg-navy-soft text-navy',
+  escalated: 'bg-[#FDE8E7] text-danger',
+  resolved: 'bg-[#E6F4EA] text-success',
+  closed: 'bg-bg-soft text-muted',
 };
 
 export function StatusPill({ status, children }) {

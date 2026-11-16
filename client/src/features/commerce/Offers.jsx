@@ -27,7 +27,7 @@ export function OfferCard({ offer, onPay, onDecline }) {
   return (
     <Card className="animate-rise border-orange bg-orange-soft p-4 ring-2 ring-orange/30">
       <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-orange-ink">
-        <BadgePercent className="size-4" aria-hidden /> Offer for you
+        <BadgePercent className="size-4" aria-hidden /> Ready to pay
         <span className="ml-auto normal-case tracking-normal">
           {offer.status === 'in_checkout' ? 'Paying…' : <TimeLeft expiresAt={offer.expiresAt} />}
         </span>
@@ -46,8 +46,8 @@ export function OfferCard({ offer, onPay, onDecline }) {
         <p className="font-display text-xl font-extrabold text-navy">{kes(offer.price)}</p>
       </div>
       <div className="mt-3 flex gap-2">
-        <Button variant="accent" className="flex-1" onClick={() => onPay(offer)} disabled={expired}>
-          Pay {kes(offer.price)}
+        <Button variant="accent" className="flex-1 animate-pay-ring" onClick={() => onPay(offer)} disabled={expired}>
+          PAY {kes(offer.price)}
         </Button>
         <Button
           variant="ghost"
@@ -71,9 +71,20 @@ export function OfferDialog({ open, buyer, products, defaultProductId, onClose, 
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState('');
   const [variant, setVariant] = useState('');
+  const [skuId, setSkuId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const product = products.find((p) => p.id === productId);
+  const skus = product?.skus ?? [];
+  const sku = skus.find((s) => s.id === skuId) ?? null;
+  const unit = sku?.price ?? product?.price ?? 0;
+  const left = sku ? sku.stock : product?.stock ?? 0;
+  const firstSku = (p) => p?.skus?.find((s) => s.stock > 0) ?? null;
+  const pick = (p, qty = 1) => {
+    const s = firstSku(p);
+    setSkuId(s?.id ?? '');
+    setPrice(p ? String((s?.price ?? p.price) * qty) : '');
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -82,30 +93,36 @@ export function OfferDialog({ open, buyer, products, defaultProductId, onClose, 
     setQuantity(1);
     setVariant('');
     setError('');
-    const p = products.find((x) => x.id === first);
-    setPrice(p ? String(p.price) : '');
+    pick(products.find((x) => x.id === first));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultProductId, products]);
 
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     setError('');
-    const res = await onSend({ buyerId: buyer.id, productId, quantity: Number(quantity), price: Number(price), variant });
+    const res = await onSend({
+      buyerId: buyer.id,
+      productId,
+      ...(skus.length ? { skuId } : { variant }),
+      quantity: Number(quantity),
+      price: Number(price),
+    });
     setBusy(false);
     if (res?.ok) onClose();
     else setError(res?.error ?? 'Offer not sent');
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={`Offer for ${buyer?.name ?? 'the shopper'}`}>
+    <Dialog open={open} onClose={onClose} title={`PAY button for ${buyer?.name ?? 'the shopper'}`}>
       <form onSubmit={submit} className="space-y-4">
         <Select
           label="Product"
           value={productId}
           onChange={(e) => {
             setProductId(e.target.value);
-            const p = products.find((x) => x.id === e.target.value);
-            if (p) setPrice(String(p.price * Number(quantity || 1)));
+            setQuantity(1);
+            pick(products.find((x) => x.id === e.target.value));
           }}
         >
           {products.map((p) => (
@@ -114,7 +131,25 @@ export function OfferDialog({ open, buyer, products, defaultProductId, onClose, 
             </option>
           ))}
         </Select>
-        {product?.variants?.length > 0 && (
+        {skus.length > 0 && (
+          <Select
+            label="Which one?"
+            value={skuId}
+            onChange={(e) => {
+              setSkuId(e.target.value);
+              setQuantity(1);
+              const s = skus.find((x) => x.id === e.target.value);
+              if (s) setPrice(String(s.price));
+            }}
+          >
+            {skus.map((s) => (
+              <option key={s.id} value={s.id} disabled={!s.stock}>
+                {Object.values(s.options).join(' / ')} · {kes(s.price)} {s.stock ? `(${s.stock} left)` : '(out of stock)'}
+              </option>
+            ))}
+          </Select>
+        )}
+        {product?.variants?.length > 0 && !skus.length && (
           <Input
             label="Variant (optional)"
             value={variant}
@@ -128,26 +163,29 @@ export function OfferDialog({ open, buyer, products, defaultProductId, onClose, 
             label="Quantity"
             type="number"
             min={1}
-            max={Math.min(10, product?.stock ?? 10)}
+            max={Math.min(10, left || 10)}
             value={quantity}
             onChange={(e) => {
               setQuantity(e.target.value);
-              if (product) setPrice(String(product.price * Number(e.target.value || 1)));
+              if (product) setPrice(String(unit * Number(e.target.value || 1)));
             }}
             required
           />
           <Input label="Total price (KES)" type="number" min={1} step={1} value={price} onChange={(e) => setPrice(e.target.value)} required />
         </div>
-        {product && Number(price) < product.price * Number(quantity || 1) && (
+        {product && Number(price) < unit * Number(quantity || 1) && (
           <p className="text-sm text-success">
-            {kes(product.price * Number(quantity || 1) - Number(price))} off the listed price
+            {kes(unit * Number(quantity || 1) - Number(price))} off the listed price
           </p>
         )}
         <FormError message={error} />
-        <Button type="submit" variant="accent" className="w-full" loading={busy} disabled={!productId}>
-          <Tag className="size-4" aria-hidden /> Send offer
+        <Button type="submit" variant="accent" className="w-full" loading={busy} disabled={!productId || (skus.length > 0 && !sku)}>
+          <Tag className="size-4" aria-hidden /> Send PAY button
         </Button>
-        <p className="text-center text-xs text-muted">The shopper sees it at once and pays with M-Pesa. Offers expire after 10 minutes.</p>
+        <p className="text-center text-xs text-muted">
+          A PAY pop-up appears on their screen at once. They enter their M-Pesa number and approve the prompt on their phone — the money
+          reaches you through Meet2buy. It expires after 10 minutes.
+        </p>
       </form>
     </Dialog>
   );

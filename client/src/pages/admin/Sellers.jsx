@@ -34,7 +34,7 @@ function PayoutDetails({ payout }) {
   );
 }
 
-/** Per-shop commission override (doc 08 §4). Empty = the default rate from Settings. */
+/** Per-shop commission override (doc 08 §4). Empty = the price bands from Settings. */
 function CommissionField({ seller }) {
   const [value, setValue] = useState(seller.commissionRate ?? '');
   const [saved, setSaved] = useState(seller.commissionRate ?? '');
@@ -70,7 +70,7 @@ function CommissionField({ seller }) {
         step="0.5"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="default"
+        placeholder="by price"
         className="h-8 w-24 rounded-btn border border-line px-2 text-sm focus:border-navy focus:outline-none"
       />
       <span className="text-muted">%</span>

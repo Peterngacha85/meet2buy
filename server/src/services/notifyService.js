@@ -2,6 +2,7 @@ import { Order } from '../models/Commerce.js';
 import { PresentationRequest } from '../models/PresentationRequest.js';
 import { Store } from '../models/Store.js';
 import { QueueEntry } from '../models/QueueEntry.js';
+import { SupportTicket } from '../models/SupportTicket.js';
 import { emitTo, userRoom } from '../sockets/io.js';
 import { userPresent } from '../sockets/presence.js';
 
@@ -61,16 +62,21 @@ export async function deliverPendingInvites(userId) {
 /** Badge counts for the sidebar. */
 export async function badgeCounts(user) {
   if (user.role === 'admin') {
-    return { pendingSellers: await Store.countDocuments({ status: 'pending' }) };
+    const [pendingSellers, support] = await Promise.all([
+      Store.countDocuments({ status: 'pending' }),
+      SupportTicket.countDocuments({ status: 'escalated' }), // waiting for Meet2buy
+    ]);
+    return { pendingSellers, support };
   }
   if (user.role === 'seller') {
     const store = await Store.findOne({ owner: user._id }).select('_id');
     if (!store) return {};
-    const [requests, orders] = await Promise.all([
+    const [requests, orders, support] = await Promise.all([
       PresentationRequest.countDocuments({ store: store._id, status: 'open' }),
       Order.countDocuments({ store: store._id, status: 'paid' }), // paid, not yet shipped
+      SupportTicket.countDocuments({ store: store._id, status: { $in: ['open', 'escalated'] } }), // waiting for the seller
     ]);
-    return { requests, orders };
+    return { requests, orders, support };
   }
   return {};
 }

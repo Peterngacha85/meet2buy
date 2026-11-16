@@ -9,12 +9,13 @@ import { Spinner } from '../../components/ui/Spinner.jsx';
 import { FormError } from '../auth/AuthCard.jsx';
 import { ProductImage } from '../../features/mall/ProductCard.jsx';
 import { ImageList } from '../../features/seller/ImageUpload.jsx';
+import { VariationsEditor, variationsBody, variationsFromProduct } from '../../features/seller/VariationsEditor.jsx';
 import { useMyStore } from '../../features/seller/useMyStore.js';
 import { useFetch } from '../../hooks/useFetch.js';
 import { api, apiError, unwrap } from '../../services/api.js';
-import { kes } from '../../utils/format.js';
+import { priceLabel } from '../../features/mall/variations.js';
 
-const blank = (department) => ({ name: '', department, price: '', stock: '1', description: '', images: [], isVisible: true });
+const blank = (department) => ({ name: '', department, price: '', stock: '1', description: '', images: [], isVisible: true, groups: [], skus: [] });
 
 function ProductForm({ open, onClose, product, departments, defaultDepartment, onSaved }) {
   const [form, setForm] = useState(blank(defaultDepartment));
@@ -27,7 +28,13 @@ function ProductForm({ open, onClose, product, departments, defaultDepartment, o
     if (open) {
       setForm(
         product
-          ? { ...product, price: String(product.price), stock: String(product.stock), description: product.description ?? '' }
+          ? {
+              ...product,
+              price: String(product.price),
+              stock: String(product.stock),
+              description: product.description ?? '',
+              ...variationsFromProduct(product),
+            }
           : blank(defaultDepartment),
       );
       setState({ saving: false, error: '', fields: {} });
@@ -39,11 +46,17 @@ function ProductForm({ open, onClose, product, departments, defaultDepartment, o
   async function onSubmit(e) {
     e.preventDefault();
     setState({ saving: true, error: '', fields: {} });
+    const variations = variationsBody(form.groups, form.skus);
+    const hasSkus = variations.skus.length > 0;
+    // Server error "skus.2.price" counts only stocked rows; map it back to the table row.
+    const stockedRows = form.skus.map((s, i) => (s.on !== false ? i : -1)).filter((i) => i >= 0);
     const body = {
       name: form.name,
       department: form.department,
-      price: form.price,
-      stock: form.stock,
+      // With variations, the product shows the lowest price and the total stock (the server recomputes both).
+      price: hasSkus ? Math.min(...variations.skus.map((s) => s.price || Infinity)) || form.price : form.price,
+      stock: hasSkus ? variations.skus.reduce((n, s) => n + (s.stock || 0), 0) : form.stock,
+      ...variations,
       description: form.description,
       images: form.images,
       isVisible: form.isVisible,
@@ -54,7 +67,12 @@ function ProductForm({ open, onClose, product, departments, defaultDepartment, o
       onClose();
     } catch (err) {
       const { message, fieldErrors } = apiError(err);
-      setState({ saving: false, error: Object.keys(fieldErrors).length ? '' : message, fields: fieldErrors });
+      const fields = {};
+      for (const [k, v] of Object.entries(fieldErrors)) {
+        const m = k.match(/^skus\.(\d+)\.(.+)$/);
+        fields[m ? `skus.${stockedRows[Number(m[1])]}.${m[2]}` : k] = v;
+      }
+      setState({ saving: false, error: Object.keys(fields).length ? '' : message, fields });
     }
   }
 
@@ -72,9 +90,21 @@ function ProductForm({ open, onClose, product, departments, defaultDepartment, o
               </option>
             ))}
           </Select>
-          <Input label="Price (KES)" inputMode="numeric" value={form.price} onChange={set('price')} error={state.fields.price} />
-          <Input label="In stock" inputMode="numeric" value={form.stock} onChange={set('stock')} error={state.fields.stock} />
+          {form.groups.length === 0 && (
+            <>
+              <Input label="Price (KES)" inputMode="numeric" value={form.price} onChange={set('price')} error={state.fields.price} />
+              <Input label="In stock" inputMode="numeric" value={form.stock} onChange={set('stock')} error={state.fields.stock} />
+            </>
+          )}
         </div>
+        <VariationsEditor
+          groups={form.groups}
+          skus={form.skus}
+          basePrice={form.price}
+          baseStock={form.stock}
+          onChange={(groups, skus) => setForm((f) => ({ ...f, groups, skus }))}
+          errors={state.fields}
+        />
         <Textarea label="Description" rows={4} maxLength={2000} value={form.description} onChange={set('description')} error={state.fields.description} />
         <label className="flex items-center gap-2 text-sm text-ink">
           <input
@@ -179,9 +209,10 @@ export function SellerProducts() {
                 <ProductImage src={p.images[0]} alt={p.name} w={200} className="size-20 shrink-0 rounded-btn" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-ink">{p.name}</p>
-                  <p className="font-display font-bold text-navy">{kes(p.price)}</p>
+                  <p className="font-display font-bold text-navy">{priceLabel(p)}</p>
                   <p className={`text-xs ${p.stock ? 'text-muted' : 'text-danger'}`}>
                     {p.stock ? `${p.stock} in stock` : 'Out of stock'}
+                    {p.skus?.length > 0 && ` · ${p.skus.length} variations`}
                     {!p.isVisible && ' · Hidden'}
                   </p>
                 </div>

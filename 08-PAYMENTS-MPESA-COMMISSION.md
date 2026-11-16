@@ -70,16 +70,29 @@ Safaricom → POST /api/mpesa/b2b/timeout   (request sat in Safaricom's queue to
 ## 4. Commission calculation
 
 ```
-rate          = store.commissionRate ?? settings.defaultCommissionRate   (e.g. 8%)
+rate          = store.commissionRate                       (admin override for one shop)
+             ?? band of unitPrice in settings.commissionTiers   (2% / 3% / 4% / 5%)
+             ?? settings.defaultCommissionRate          (2%: prices outside every band)
 commission    = round(amount × rate / 100)                               (whole KES)
 payoutAmount  = amount − commission − (payoutFee if deductPayoutFeeFromSeller)
 ```
 
-**Example:** buyer pays KES 2,500, rate 8% → commission KES 200 → seller receives KES 2,300.
+**Price bands (default, editable in Admin → Settings):**
+
+| Category | Unit selling price | Commission |
+|----------|--------------------|-----------|
+| Entry-level | KES 5,000–15,000 | 2% |
+| Mid-range | KES 15,001–40,000 | 3% |
+| Premium | KES 40,001–80,000 | 4% |
+| Flagship | above KES 80,000 | 5% |
+
+The band is chosen by the price of **one item** (unit price), not the order total: 2 phones at KES 25,000 = Mid-range 3%.
+
+**Example:** buyer pays KES 25,000 → Mid-range 3% → commission KES 750 → seller receives KES 24,250.
 
 Rules:
 - The rate is **snapshotted** on the order at payment time.
-- Admin can set a **default rate** and a **per-seller override** in the dashboard.
+- Admin edits the **price bands**, the **default rate** and a **per-seller override** in the dashboard.
 - All amounts are whole shillings.
 - Safaricom charges a fee on B2B transfers. **Who pays it is a client decision** (see open questions):
   - Option A: Meet2buy absorbs it (fee comes out of the commission) — simpler for sellers.

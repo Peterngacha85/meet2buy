@@ -5,7 +5,7 @@ import { env } from '../config/env.js';
 // we create here, so images never pass through (or slow down) our server.
 // https://cloudinary.com/documentation/authentication_signatures
 
-export const UPLOAD_KINDS = ['logo', 'banner', 'product', 'avatar'];
+export const UPLOAD_KINDS = ['logo', 'banner', 'product', 'avatar', 'support'];
 const ALLOWED_FORMATS = 'jpg,jpeg,png,webp,avif,heic';
 
 export const isCloudinaryConfigured = () =>

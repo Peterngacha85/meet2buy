@@ -10,6 +10,7 @@ const buyer = {
   email: 'Jane@Example.com',
   phone: '0712 345 678',
   password: 'supersecret1',
+  acceptTerms: true,
 };
 
 const cookieFrom = (res) => res.headers['set-cookie']?.find((c) => c.startsWith('m2b_token='));
@@ -58,7 +59,18 @@ describe('POST /api/auth/register', () => {
       .send({ name: 'J', email: 'nope', phone: '123', password: 'short' });
     expect(res.status).toBe(400);
     const fields = res.body.errors.map((e) => e.field);
-    expect(fields).toEqual(expect.arrayContaining(['name', 'email', 'phone', 'password']));
+    expect(fields).toEqual(expect.arrayContaining(['name', 'email', 'phone', 'password', 'acceptTerms']));
+  });
+
+  it('requires the Terms & Privacy box and records which version was accepted', async () => {
+    const { res } = await registerAndGetCookie({ ...buyer, acceptTerms: false });
+    expect(res.status).toBe(400);
+    expect(res.body.errors[0]).toMatchObject({ field: 'acceptTerms' });
+
+    await registerAndGetCookie();
+    const stored = await User.findOne({ email: 'jane@example.com' });
+    expect(stored.termsAcceptedAt).toBeInstanceOf(Date);
+    expect(stored.termsVersion).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

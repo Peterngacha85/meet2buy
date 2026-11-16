@@ -4,7 +4,7 @@ export const MAX_UPLOAD_MB = 8;
 
 /**
  * Upload one image straight to Cloudinary with a signature from our API.
- * kind: 'logo' | 'banner' | 'product' | 'avatar'. Returns the secure https URL.
+ * kind: 'logo' | 'banner' | 'product' | 'avatar' | 'support' (buyers: after-sales photos only). Returns the secure https URL.
  */
 export async function uploadImage(file, kind) {
   if (!file.type.startsWith('image/')) throw new Error('Choose an image file (JPG, PNG or WebP).');

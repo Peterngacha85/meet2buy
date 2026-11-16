@@ -16,6 +16,8 @@ const chatMessageSchema = new mongoose.Schema(
 );
 
 chatMessageSchema.index({ session: 1, createdAt: -1 });
+// Privacy Policy §6: chat is deleted 90 days after it was sent (MongoDB TTL index).
+chatMessageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
 
 export const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 

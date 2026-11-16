@@ -17,6 +17,7 @@ router.post('/checkout', protect, checkoutLimiter, validate(checkoutSchema), ord
 router.get('/mine', protect, orders.mine);
 router.get('/store', ...seller, orders.storeOrders);
 router.get('/:id/status', idParam, protect, orders.status);
+router.get('/:id/receipt', idParam, protect, orders.receipt);
 router.patch('/:id/fulfilment', idParam, ...seller, validate(fulfilmentSchema), orders.fulfilment);
 router.post('/:id/simulate', idParam, protect, validate(simulateSchema), orders.simulate);
 

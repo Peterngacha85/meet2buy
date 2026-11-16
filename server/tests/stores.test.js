@@ -21,6 +21,7 @@ const sellerBody = (over = {}) => ({
     ],
   },
   payout: { type: 'till', tillNumber: '123 456', registeredName: 'HISENSE KENYA' },
+  acceptTerms: true,
   ...over,
 });
 
@@ -60,6 +61,12 @@ describe('POST /api/auth/register-seller', () => {
 
     const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
     expect(me.body.data.store.name).toBe('Hisense');
+  });
+
+  it('requires the Terms & Privacy box', async () => {
+    const { res } = await registerSeller(sellerBody({ acceptTerms: undefined }));
+    expect(res.status).toBe(400);
+    expect(res.body.errors.map((e) => e.field)).toContain('acceptTerms');
   });
 
   it('gives a second shop with the same name a unique slug', async () => {

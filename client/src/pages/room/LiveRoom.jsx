@@ -12,6 +12,7 @@ import { TrackAudio, TrackVideo } from '../../features/room/Media.jsx';
 import { LiveBadge, PinnedProduct, PresenceBar } from '../../features/room/RoomBits.jsx';
 import { BuyerQueueCard, CounterTile, JoinQueueDialog, TurnModal } from '../../features/room/Queue.jsx';
 import { CheckoutDialog } from '../../features/commerce/CheckoutDialog.jsx';
+import { PayPrompt } from '../../features/commerce/PayPrompt.jsx';
 import { OfferCard } from '../../features/commerce/Offers.jsx';
 import { askNotificationPermission, chime, flashTitle, systemNotify } from '../../store/notifyStore.js';
 import { mediaErrorMessage, useLiveKit } from '../../features/room/useLiveKit.js';
@@ -160,10 +161,10 @@ function Room({ store, session, products }) {
     askNotificationPermission(); // so "your turn" can reach them if they switch tabs
     setJoining({ product });
   };
-  const openBuy = (product) => {
+  const openBuy = (product, variant = null) => {
     setViewing(null);
     if (!rt.canChat) return loginNext();
-    setBuying({ product });
+    setBuying({ product, variant });
   };
   const queueAhead = rt.myQueue.status === 'waiting' ? rt.myQueue.position - 1 : rt.queueLength;
   const otherAtCounter = !atCounter && lk.counter;
@@ -363,6 +364,7 @@ function Room({ store, session, products }) {
           await rt.leaveQueue();
         }}
       />
+      <PayPrompt offers={rt.offers} onPay={(offer) => setBuying({ offer })} />
       <CheckoutDialog item={buying} sessionId={session.id} payment={rt.payment} onClose={() => setBuying(null)} />
     </div>
   );

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import mongoose from 'mongoose';
 import { isOwnImageUrl } from '../services/cloudinary.js';
-import { MAX_PRODUCT_IMAGES } from '../models/Product.js';
-import { registerSchema } from './authValidators.js';
+import { MAX_PRODUCT_IMAGES, MAX_SKUS } from '../models/Product.js';
+import { acceptTerms, accountSchema } from './authValidators.js';
 
 export const objectId = (label = 'id') =>
   z.string().refine((v) => mongoose.isValidObjectId(v), `Invalid ${label}`);
@@ -54,13 +54,14 @@ const description = z.string().trim().max(500, 'Keep the description under 500 c
 const brandColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Pick a colour');
 
 export const registerSellerSchema = z.object({
-  account: registerSchema,
+  account: accountSchema,
   store: z.object({
     name: storeName,
     description: description.optional().default(''),
     departments,
   }),
   payout: payoutSchema,
+  acceptTerms,
 });
 
 export const updateStoreSchema = z.object({
@@ -72,9 +73,18 @@ export const updateStoreSchema = z.object({
   departments: departments.optional(),
 });
 
-const variant = z.object({
-  label: z.string().trim().min(1).max(30),
-  options: z.array(z.string().trim().min(1).max(30)).min(1).max(20),
+const variant = z
+  .object({
+    label: z.string().trim().min(1, 'Name the option, e.g. Colour').max(30),
+    options: z.array(z.string().trim().min(1).max(30)).min(1, 'Add at least one choice').max(20, 'At most 20 choices'),
+  })
+  .refine((v) => new Set(v.options.map((o) => o.toLowerCase())).size === v.options.length, 'Each choice must be different');
+
+const sku = z.object({
+  id: objectId('variation').optional(),
+  options: z.record(z.string().trim().min(1).max(30), z.string().trim().min(1).max(30)),
+  price: z.coerce.number().int('Price must be whole shillings').min(1, 'Price must be at least KES 1').max(10_000_000),
+  stock: z.coerce.number().int('Stock must be a whole number').min(0, 'Stock cannot be negative').max(100_000),
 });
 
 const productFields = {
@@ -84,7 +94,12 @@ const productFields = {
   price: z.coerce.number().int('Price must be whole shillings').min(1, 'Price must be at least KES 1').max(10_000_000),
   stock: z.coerce.number().int('Stock must be a whole number').min(0, 'Stock cannot be negative').max(100_000),
   images: z.array(imageUrl).max(MAX_PRODUCT_IMAGES, `At most ${MAX_PRODUCT_IMAGES} photos`).optional(),
-  variants: z.array(variant).max(3).optional(),
+  variants: z
+    .array(variant)
+    .max(3, 'At most 3 options')
+    .refine((list) => new Set(list.map((v) => v.label.toLowerCase())).size === list.length, 'Each option needs a different name')
+    .optional(),
+  skus: z.array(sku).max(MAX_SKUS, `At most ${MAX_SKUS} variations`).optional(),
   isVisible: z.boolean().optional(),
 };
 
@@ -92,7 +107,7 @@ export const createProductSchema = z.object(productFields);
 export const updateProductSchema = z.object(productFields).partial();
 
 export const uploadSignatureSchema = z.object({
-  kind: z.enum(['logo', 'banner', 'product', 'avatar'], { error: 'Unknown upload type' }),
+  kind: z.enum(['logo', 'banner', 'product', 'avatar', 'support'], { error: 'Unknown upload type' }),
 });
 
 export const presentationRequestSchema = z.object({

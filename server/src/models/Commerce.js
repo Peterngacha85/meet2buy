@@ -25,6 +25,7 @@ const offerSchema = new mongoose.Schema(
     product: { type: ObjectId, ref: 'Product', required: true },
     productName: { type: String, required: true },
     variant: { type: String, default: '' },
+    sku: { type: ObjectId, default: null }, // the product variation offered, if the product has variations
     quantity: { type: Number, required: true, min: 1, validate: Number.isInteger },
     price: { type: Number, required: true, min: 1, validate: Number.isInteger }, // total KES
     status: { type: String, enum: OFFER_STATUSES, default: 'pending' },
@@ -53,6 +54,7 @@ const orderSchema = new mongoose.Schema(
         name: { type: String, required: true },
         image: { type: String, default: null },
         variant: { type: String, default: '' },
+        sku: { type: ObjectId, default: null }, // product variation whose stock was reserved
         quantity: { type: Number, required: true },
         unitPrice: { type: Number, required: true },
         _id: false,
@@ -77,9 +79,13 @@ const orderSchema = new mongoose.Schema(
     fulfilledAt: { type: Date, default: null },
     payment: { type: ObjectId, ref: 'Payment', default: null },
     payout: { type: ObjectId, ref: 'Payout', default: null },
+    // Meet2buy receipt, issued once the payment is confirmed: RCT-2026-000123.
+    receiptNumber: { type: String, default: null },
+    receiptIssuedAt: { type: Date, default: null },
   },
   { timestamps: true, toJSON },
 );
+orderSchema.index({ receiptNumber: 1 }, { unique: true, partialFilterExpression: { receiptNumber: { $type: 'string' } } });
 orderSchema.index({ store: 1, createdAt: -1 });
 orderSchema.index({ buyer: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: 1 }); // the unpaid-order sweeper

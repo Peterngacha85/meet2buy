@@ -7,6 +7,7 @@ import { apiError } from '../../services/api.js';
 import { homeForRole } from '../../store/authStore.js';
 import { AuthCard, FormError } from './AuthCard.jsx';
 import { GoogleButton } from '../../features/auth/GoogleButton.jsx';
+import { TermsCheckbox } from '../../features/auth/TermsCheckbox.jsx';
 
 // Only allow same-site relative redirects (avoid open redirects).
 const safeNext = (value) => (value && value.startsWith('/') && !value.startsWith('//') ? value : null);
@@ -20,6 +21,9 @@ export function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState({ message: '', fieldErrors: {} });
   const [submitting, setSubmitting] = useState(false);
+  // A Google account new to Meet2buy must accept the terms first: the server says so, then we ask.
+  const [needsTerms, setNeedsTerms] = useState(false);
+  const [accepted, setAccepted] = useState(false);
 
   if (status === 'ready' && user && !submitting) return <Navigate to={next ?? homeForRole(user.role)} replace />;
 
@@ -32,7 +36,9 @@ export function Login() {
       const u = await action();
       navigate(next ?? homeForRole(u.role), { replace: true });
     } catch (err) {
-      setError(apiError(err));
+      const e = apiError(err);
+      if (e.fieldErrors.acceptTerms) setNeedsTerms(true);
+      setError(e);
       setSubmitting(false);
     }
   }
@@ -57,11 +63,25 @@ export function Login() {
     >
       <GoogleButton
         text="signin_with"
-        onCredential={(credential) => run(() => loginWithGoogle(credential))}
+        onCredential={(credential) => run(() => loginWithGoogle(credential, accepted))}
         onError={(message) => setError({ message, fieldErrors: {} })}
       />
+      {needsTerms && (
+        <div className="-mt-2 mb-5 space-y-2">
+          <p className="text-sm text-ink">This Google account is new to Meet2buy. Accept the terms, then tap the Google button again.</p>
+          <TermsCheckbox
+            id="google-terms"
+            checked={accepted}
+            onChange={(v) => {
+              setAccepted(v);
+              setError({ message: '', fieldErrors: {} });
+            }}
+            error={accepted ? undefined : error.fieldErrors.acceptTerms}
+          />
+        </div>
+      )}
       <form onSubmit={onSubmit} noValidate className="space-y-4">
-        <FormError message={Object.keys(error.fieldErrors).length ? '' : error.message} />
+        <FormError message={Object.keys(error.fieldErrors).length || needsTerms ? '' : error.message} />
         <Input
           label="Email"
           name="email"

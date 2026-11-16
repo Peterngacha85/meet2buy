@@ -33,6 +33,26 @@
     to { opacity: 1; transform: none; }
   }
 
+  /* The PAY button sent from the counter: a soft ring that draws the eye. */
+  --animate-pay-ring: pay-ring 1.8s ease-out infinite;
+  @keyframes pay-ring {
+    0% { box-shadow: 0 0 0 0 rgb(247 112 10 / 0.55); }
+    70% { box-shadow: 0 0 0 18px rgb(247 112 10 / 0); }
+    100% { box-shadow: 0 0 0 0 rgb(247 112 10 / 0); }
+  }
+
+  /* Receipt: the paper feeds out of the printer slot, line by line. */
+  --animate-receipt-feed: receipt-feed 2.4s steps(24, end) both;
+  @keyframes receipt-feed {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+  }
+  --animate-printer-buzz: printer-buzz 0.12s linear infinite;
+  @keyframes printer-buzz {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(0.6px); }
+  }
+
   --animate-live-pulse: live-pulse 1.6s ease-in-out infinite;
   @keyframes live-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -60,4 +80,15 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Receipt printing (pages/receipt/Receipt.jsx): only the paper, full width, no animation. */
+@media print {
+  @page { margin: 10mm; }
+  body { background: #fff !important; }
+  .receipt-page { background: #fff !important; padding: 0 !important; }
+  .no-print { display: none !important; }
+  .print-area { overflow: visible !important; padding: 0 !important; margin: 0 !important; }
+  .print-receipt { animation: none !important; transform: none !important; filter: none !important; }
+  .receipt-paper { max-width: 80mm; margin: 0 auto; }
 }

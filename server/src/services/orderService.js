@@ -1,5 +1,5 @@
 import { Offer, Order, Payment, newOrderNumber } from '../models/Commerce.js';
-import { Product } from '../models/Product.js';
+import { Product, findSku, skuLabel } from '../models/Product.js';
 import { Store } from '../models/Store.js';
 import { RoomSession } from '../models/RoomSession.js';
 import { AppError } from '../utils/AppError.js';
@@ -10,6 +10,7 @@ import { isStkConfigured, paymentsOff, stkPush, stkQuery } from './mpesa.js';
 import { computeSplit, createPayout, sendPayout } from './payoutService.js';
 import { postSystemMessage } from './roomService.js';
 import { notifyStoreOwner } from './notifyService.js';
+import { issueReceipt } from './receiptService.js';
 
 // Checkout and the life of an order (doc 08 §3). Real money: every step is atomic and runs at most once.
 
@@ -28,16 +29,29 @@ function variantLabel(product, chosen = {}) {
   return parts.join(' · ');
 }
 
-async function reserveStock(productId, quantity) {
-  const res = await Product.updateOne({ _id: productId, stock: { $gte: quantity } }, { $inc: { stock: -quantity } });
+/** Take stock atomically: from one variation (and the product total) when skuId is given. */
+export async function reserveStock(productId, quantity, skuId = null) {
+  const res = skuId
+    ? await Product.updateOne(
+        { _id: productId, skus: { $elemMatch: { _id: skuId, stock: { $gte: quantity } } } },
+        { $inc: { 'skus.$.stock': -quantity, stock: -quantity } },
+      )
+    : await Product.updateOne({ _id: productId, stock: { $gte: quantity } }, { $inc: { stock: -quantity } });
   return res.modifiedCount === 1;
+}
+
+/** Put stock back. A variation deleted meanwhile has nothing to return to (the seller recounts on save). */
+function returnStock(productId, quantity, skuId = null) {
+  return skuId
+    ? Product.updateOne({ _id: productId, 'skus._id': skuId }, { $inc: { 'skus.$.stock': quantity, stock: quantity } })
+    : Product.updateOne({ _id: productId }, { $inc: { stock: quantity } });
 }
 
 /** Give reserved stock back exactly once (guarded by stockReleased). */
 export async function releaseStock(orderId) {
   const order = await Order.findOneAndUpdate({ _id: orderId, stockReleased: false }, { stockReleased: true }, { returnDocument: 'after' });
   if (!order) return false;
-  await Promise.all(order.items.map((i) => Product.updateOne({ _id: i.product }, { $inc: { stock: i.quantity } })));
+  await Promise.all(order.items.map((i) => returnStock(i.product, i.quantity, i.sku)));
   return true;
 }
 
@@ -64,6 +78,7 @@ export async function checkout(user, input) {
 
   let offer = null;
   let product;
+  let sku = null;
   let quantity;
   let variant;
   let amount;
@@ -74,11 +89,22 @@ export async function checkout(user, input) {
     product = await Product.findOne({ _id: offer.product, isVisible: true });
     ({ quantity, variant } = offer);
     amount = offer.price;
+    if (product && offer.sku) {
+      sku = product.skus.id(offer.sku);
+      if (!sku) throw new AppError(409, 'That variation is no longer available. Ask the seller for a new offer.');
+    }
   } else {
     product = await Product.findOne({ _id: input.productId, isVisible: true }).catch(() => null);
     quantity = input.quantity;
-    if (product) variant = variantLabel(product, input.variant);
-    amount = product ? product.price * quantity : 0;
+    if (product) {
+      variant = variantLabel(product, input.variant);
+      if (product.skus.length) {
+        sku = findSku(product, input.variant);
+        if (!sku) throw new AppError(409, `${variant} is not available. Choose another option.`);
+        variant = skuLabel(product, sku);
+      }
+    }
+    amount = product ? (sku?.price ?? product.price) * quantity : 0;
   }
   if (!product) throw new AppError(404, 'This product is no longer available');
 
@@ -94,8 +120,9 @@ export async function checkout(user, input) {
   }
 
   // 1. Reserve stock (atomic: only if enough is left). Two buyers, one unit → the second gets 409, no STK push.
-  if (!(await reserveStock(product._id, quantity))) {
-    throw new AppError(409, product.stock > 0 ? `Only ${product.stock} left in stock` : 'Sorry, this just sold out');
+  if (!(await reserveStock(product._id, quantity, sku?._id))) {
+    const left = sku ? sku.stock : product.stock;
+    throw new AppError(409, left > 0 ? `Only ${left} left in stock` : 'Sorry, this just sold out');
   }
 
   // 2. Lock the offer so it can't expire while the buyer types their PIN.
@@ -105,7 +132,17 @@ export async function checkout(user, input) {
     store: store._id,
     session: sessionId,
     offer: offer?._id ?? null,
-    items: [{ product: product._id, name: product.name, image: product.images[0] ?? null, variant, quantity, unitPrice: Math.round(amount / quantity) }],
+    items: [
+      {
+        product: product._id,
+        name: product.name,
+        image: product.images[0] ?? null,
+        variant,
+        sku: sku?._id ?? null,
+        quantity,
+        unitPrice: Math.round(amount / quantity),
+      },
+    ],
     amount,
     delivery: input.delivery,
   });
@@ -115,7 +152,7 @@ export async function checkout(user, input) {
       { status: 'in_checkout', order: order._id },
     );
     if (locked.modifiedCount !== 1) {
-      await Product.updateOne({ _id: product._id }, { $inc: { stock: quantity } });
+      await returnStock(product._id, quantity, sku?._id);
       throw new AppError(409, 'This offer is no longer available. Ask the seller for a new one.');
     }
   }
@@ -247,6 +284,7 @@ export async function applyStkResult(result) {
     { returnDocument: 'after' },
   );
   if (!paid) return null;
+  await issueReceipt(paid._id).catch((err) => logger.error(`receipt for ${paid.orderNumber} failed`, err));
   if (paid.offer) await Offer.updateOne({ _id: paid.offer }, { status: 'paid' });
   if (paid.session) await RoomSession.updateOne({ _id: paid.session }, { $inc: { totalSales: paid.amount } });
 

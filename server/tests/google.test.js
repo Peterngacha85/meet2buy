@@ -28,7 +28,7 @@ const cred = (over = {}) =>
     ...over,
   });
 
-const google = (over) => request(app).post('/api/auth/google').send({ credential: cred(over) });
+const google = (over, acceptTerms = true) => request(app).post('/api/auth/google').send({ credential: cred(over), acceptTerms });
 
 describe('POST /api/auth/google', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -47,10 +47,21 @@ describe('POST /api/auth/google', () => {
     expect(await User.countDocuments()).toBe(1);
   });
 
+  it('a new Google account must accept the terms; an existing one logs in without asking again', async () => {
+    const refused = await google({}, false);
+    expect(refused.status).toBe(400);
+    expect(refused.body.errors[0].field).toBe('acceptTerms');
+    expect(await User.countDocuments()).toBe(0);
+
+    expect((await google()).status).toBe(201);
+    expect((await google({}, undefined)).status).toBe(200);
+    expect((await User.findOne({ email: 'wanjiku@gmail.com' })).termsVersion).toBeTruthy();
+  });
+
   it('links Google to an existing account with the same verified email', async () => {
     await request(app)
       .post('/api/auth/register')
-      .send({ name: 'Wanjiku', email: 'wanjiku@gmail.com', phone: '0712345678', password: 'supersecret1' });
+      .send({ name: 'Wanjiku', email: 'wanjiku@gmail.com', phone: '0712345678', password: 'supersecret1', acceptTerms: true });
     const res = await google();
     expect(res.status).toBe(200);
     const stored = await User.findOne({ email: 'wanjiku@gmail.com' });

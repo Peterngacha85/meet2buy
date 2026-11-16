@@ -3,6 +3,7 @@ import { z } from 'zod';
 import * as admin from '../controllers/adminController.js';
 import * as ops from '../controllers/adminOpsController.js';
 import {
+  addAdminSchema,
   closeRoomSchema,
   commissionSchema,
   resolveOrderSchema,
@@ -41,5 +42,8 @@ router.get('/settings', ops.getSettings);
 router.patch('/settings', validate(settingsSchema), ops.updateSettings);
 router.get('/users', ops.users);
 router.patch('/users/:id/suspend', idParam, validate(suspendUserSchema), ops.suspendUser);
+router.get('/admins', ops.listAdmins);
+router.post('/admins', validate(addAdminSchema), ops.addAdmin);
+router.delete('/admins/:id', idParam, ops.removeAdmin);
 
 export default router;

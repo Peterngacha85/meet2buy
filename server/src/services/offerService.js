@@ -1,5 +1,5 @@
 import { Offer } from '../models/Commerce.js';
-import { Product } from '../models/Product.js';
+import { Product, skuLabel } from '../models/Product.js';
 import { Settings } from '../models/Settings.js';
 import { User } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
@@ -15,7 +15,13 @@ export function offerView(o, product = null) {
     session: o.session.toString(),
     buyer: o.buyer.toString(),
     product: product
-      ? { id: product._id.toString(), name: product.name, images: product.images, price: product.price }
+      ? {
+          id: product._id.toString(),
+          name: product.name,
+          images: product.images,
+          // The listed price of what was offered (the variation's, if any), for the "was" price.
+          price: (o.sku && product.skus?.id?.(o.sku)?.price) || product.price,
+        }
       : { id: o.product.toString(), name: o.productName },
     variant: o.variant,
     quantity: o.quantity,
@@ -26,7 +32,7 @@ export function offerView(o, product = null) {
   };
 }
 
-export async function createOffer(sessionId, { buyerId, productId, variant = '', quantity, price }) {
+export async function createOffer(sessionId, { buyerId, productId, skuId = null, variant = '', quantity, price }) {
   const session = await loadLiveSession(sessionId);
   if (!userPresent(sessionId, String(buyerId))) throw new AppError(409, 'That shopper has left the room');
   const [product, buyer, settings] = await Promise.all([
@@ -38,7 +44,14 @@ export async function createOffer(sessionId, { buyerId, productId, variant = '',
   if (!buyer) throw new AppError(404, 'Shopper not found');
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw new AppError(400, 'Quantity must be 1 to 10');
   if (!Number.isInteger(price) || price < 1) throw new AppError(400, 'Enter the total price in whole shillings');
-  if (product.stock < quantity) throw new AppError(409, `Only ${product.stock} in stock`);
+  // A product with variations: the seller picks which one (its stock and label come from the variation).
+  let sku = null;
+  if (product.skus.length) {
+    sku = skuId ? product.skus.id(skuId) : null;
+    if (!sku) throw new AppError(400, 'Choose which variation you are offering');
+  }
+  const left = sku ? sku.stock : product.stock;
+  if (left < quantity) throw new AppError(409, left ? `Only ${left} in stock` : 'That one is out of stock');
 
   // A new offer replaces any earlier one still waiting for this buyer.
   const replaced = await Offer.find({ session: sessionId, buyer: buyerId, status: 'pending' }).select('_id');
@@ -50,7 +63,8 @@ export async function createOffer(sessionId, { buyerId, productId, variant = '',
     buyer: buyerId,
     product: product._id,
     productName: product.name,
-    variant: String(variant ?? '').slice(0, 80),
+    variant: sku ? skuLabel(product, sku) : String(variant ?? '').slice(0, 80),
+    sku: sku?._id ?? null,
     quantity,
     price,
     expiresAt: new Date(Date.now() + settings.offerExpiryMinutes * 60_000),
@@ -77,6 +91,6 @@ export async function declineOffer(user, offerId) {
 export async function openOffersFor(sessionId, userId) {
   const offers = await Offer.find({ session: sessionId, buyer: userId, status: 'pending', expiresAt: { $gt: new Date() } })
     .sort({ createdAt: -1 })
-    .populate('product', 'name images price');
+    .populate('product', 'name images price skus');
   return offers.map((o) => offerView(o, o.product?.name ? o.product : null));
 }

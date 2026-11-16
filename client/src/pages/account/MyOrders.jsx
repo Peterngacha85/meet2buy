@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { Phone, Receipt } from 'lucide-react';
+import { FileText, LifeBuoy, Phone, Receipt } from 'lucide-react';
 import { Card } from '../../components/ui/Card.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
 import { StatusPill } from '../../components/ui/StatusPill.jsx';
@@ -25,8 +25,15 @@ export function MyOrders() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <h1 className="text-[28px] font-bold">My orders</h1>
-      <p className="mt-1 text-muted">What you bought in Meet2buy shops. The seller contacts you to arrange delivery.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[28px] font-bold">My orders</h1>
+          <p className="mt-1 text-muted">What you bought in Meet2buy shops. The seller contacts you to arrange delivery.</p>
+        </div>
+        <Link to="/support" className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy hover:underline">
+          <LifeBuoy className="size-4" aria-hidden /> Help requests
+        </Link>
+      </div>
 
       {loading ? (
         <Spinner />
@@ -84,6 +91,16 @@ export function MyOrders() {
                   )}
                   {o.status === 'on_hold' && <span>Meet2buy is checking this payment and will contact you.</span>}
                 </div>
+                {['paid', 'shipped', 'delivered'].includes(o.status) && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link to={`/receipt/${o.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-btn border border-navy px-3 text-sm font-semibold text-navy hover:bg-navy-soft">
+                      <FileText className="size-4" aria-hidden /> Receipt{o.receiptNumber ? ` ${o.receiptNumber}` : ''}
+                    </Link>
+                    <Link to={`/orders/${o.id}/help`} className="inline-flex h-9 items-center gap-1.5 rounded-btn px-3 text-sm font-semibold text-navy hover:bg-navy-soft">
+                      <LifeBuoy className="size-4" aria-hidden /> Get help with this order
+                    </Link>
+                  </div>
+                )}
               </Card>
             </li>
           ))}

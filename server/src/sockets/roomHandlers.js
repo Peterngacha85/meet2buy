@@ -213,6 +213,7 @@ export function registerRoomHandlers(socket) {
       const offer = await createOffer(sessionId, {
         buyerId: payload.buyerId,
         productId: payload.productId,
+        skuId: mongoose.isValidObjectId(payload.skuId) ? payload.skuId : null,
         variant: payload.variant,
         quantity: Number(payload.quantity),
         price: Number(payload.price),

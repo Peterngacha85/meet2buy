@@ -10,6 +10,7 @@ import { ProductImage } from '../mall/ProductCard.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { api, apiError, unwrap } from '../../services/api.js';
 import { kes } from '../../utils/format.js';
+import { findSku, optionAvailable } from '../mall/variations.js';
 
 const SAVED = 'm2b_delivery';
 const POLL_MS = 5000;
@@ -53,6 +54,7 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
   const [simulated, setSimulated] = useState(false);
   const [result, setResult] = useState(null);
   const [slow, setSlow] = useState(false);
+  const [editDelivery, setEditDelivery] = useState(true);
   const startedAt = useRef(0);
 
   // Fresh form each time the sheet opens, prefilled from last time.
@@ -66,7 +68,9 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
       location: saved.location ?? '',
       notes: '',
     });
-    setVariant({});
+    // PAY from the counter: with delivery details saved from last time, only the M-Pesa number is asked.
+    setEditDelivery(!(item?.offer && saved.name && saved.phone && saved.location));
+    setVariant(Object.fromEntries(Object.entries(item?.variant ?? {}).filter(([, v]) => v)));
     setQuantity(1);
     setErrors({});
     setError('');
@@ -107,8 +111,11 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
 
   const name = offer ? offer.product.name : product.name;
   const image = offer ? offer.product.images?.[0] : product.images?.[0];
-  const maxQty = Math.max(1, Math.min(10, product?.stock ?? 1));
-  const total = offer ? offer.price : product.price * quantity;
+  const sku = product?.skus?.length ? findSku(product, variant) : null;
+  const unit = sku?.price ?? product?.price ?? 0;
+  const notStocked = Boolean(product?.skus?.length && product.variants.every((v) => variant[v.label]) && (!sku || !sku.stock));
+  const maxQty = Math.max(1, Math.min(10, (sku ?? product)?.stock ?? 1));
+  const total = offer ? offer.price : unit * quantity;
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function pay(e) {
@@ -132,6 +139,7 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
       const mapped = {};
       for (const [k, v] of Object.entries(fieldErrors)) mapped[k.replace(/^delivery\./, '')] = v;
       setErrors(mapped);
+      if (['name', 'phone', 'location'].some((k) => mapped[k])) setEditDelivery(true);
       setError(message);
     } finally {
       setBusy(false);
@@ -157,7 +165,9 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-ink">{name}</p>
         <p className="text-sm text-muted">
-          {offer ? `${offer.quantity} × · seller's offer${offer.variant ? ` · ${offer.variant}` : ''}` : `${kes(product.price)} each`}
+          {offer
+            ? `${offer.quantity} × · seller's offer${offer.variant ? ` · ${offer.variant}` : ''}`
+            : `${kes(unit)} each${sku ? ` · ${Object.values(sku.options).join(' / ')}` : ''}`}
         </p>
       </div>
       <p className="font-display text-lg font-bold text-navy">{kes(total)}</p>
@@ -165,7 +175,7 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
   );
 
   return (
-    <Dialog open onClose={onClose} dismissable={step !== 'waiting'} title={step === 'form' ? 'Checkout' : 'Pay with M-Pesa'}>
+    <Dialog open onClose={onClose} dismissable={step !== 'waiting'} title={step === 'form' && !offer ? 'Checkout' : 'Pay with M-Pesa'}>
       {step === 'form' && (
         <form onSubmit={pay} className="space-y-4">
           {summary}
@@ -176,7 +186,10 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
                   key={v.label}
                   label={v.label}
                   value={variant[v.label] ?? ''}
-                  onChange={(e) => setVariant((s) => ({ ...s, [v.label]: e.target.value }))}
+                  onChange={(e) => {
+                    setVariant((s) => ({ ...s, [v.label]: e.target.value }));
+                    setQuantity(1);
+                  }}
                   error={errors[`variant.${v.label}`]}
                   required
                 >
@@ -184,7 +197,9 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
                     Choose…
                   </option>
                   {v.options.map((o) => (
-                    <option key={o}>{o}</option>
+                    <option key={o} disabled={!optionAvailable(product, variant, v.label, o)}>
+                      {o}
+                    </option>
                   ))}
                 </Select>
               ))}
@@ -215,8 +230,23 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
             error={errors.mpesaPhone}
             hint="You'll get a prompt on this phone to enter your M-Pesa PIN."
             required
+            autoFocus={Boolean(offer)}
           />
 
+          {!editDelivery ? (
+            <div className="flex items-start justify-between gap-3 rounded-card border border-line px-3.5 py-3 text-sm">
+              <div className="min-w-0">
+                <p className="font-semibold text-navy">Deliver to</p>
+                <p className="truncate text-ink">
+                  {form.name} · {form.phone}
+                </p>
+                <p className="truncate text-muted">{form.location}</p>
+              </div>
+              <button type="button" className="shrink-0 font-semibold text-navy underline" onClick={() => setEditDelivery(true)}>
+                Change
+              </button>
+            </div>
+          ) : (
           <fieldset className="space-y-3">
             <legend className="mb-1 text-sm font-semibold text-navy">Delivery</legend>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -226,9 +256,10 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
             <Input label="Location / address" value={form.location ?? ''} onChange={set('location')} error={errors.location} placeholder="e.g. Kilimani, Argwings Kodhek Rd, Apt 4B" required />
             <Textarea label="Notes for the seller (optional)" value={form.notes ?? ''} onChange={set('notes')} rows={2} maxLength={300} />
           </fieldset>
+          )}
 
-          <FormError message={error} />
-          <Button type="submit" variant="accent" size="lg" className="w-full" loading={busy}>
+          <FormError message={notStocked ? 'That combination is out of stock. Choose another option.' : error} />
+          <Button type="submit" variant="accent" size="lg" className="w-full" loading={busy} disabled={notStocked}>
             Pay {kes(total)} with M-Pesa
           </Button>
           <p className="text-center text-xs text-muted">
@@ -289,8 +320,8 @@ export function CheckoutDialog({ item, sessionId, payment, onClose }) {
           {summary}
           <p className="text-sm text-ink">The seller will contact you on {form.phone} to arrange delivery to {form.location}.</p>
           <div className="flex gap-2">
-            <Button to="/orders" variant="outline" className="flex-1">
-              My orders
+            <Button to={order ? `/receipt/${order.id}` : '/orders'} variant="outline" className="flex-1">
+              View receipt
             </Button>
             <Button variant="accent" className="flex-1" onClick={onClose}>
               Back to the shop

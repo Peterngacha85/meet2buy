@@ -32,8 +32,9 @@ export const useAuthStore = create((set) => ({
     return user;
   },
 
-  async loginWithGoogle(credential) {
-    await unwrap(api.post('/auth/google', { credential }));
+  /** acceptTerms: the Terms & Privacy box (needed only when the Google account is new to Meet2buy). */
+  async loginWithGoogle(credential, acceptTerms) {
+    await unwrap(api.post('/auth/google', { credential, ...(acceptTerms ? { acceptTerms: true } : {}) }));
     const { user, store } = await unwrap(api.get('/auth/me'));
     set({ user, store, status: 'ready' });
     return user;

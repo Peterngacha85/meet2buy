@@ -10,7 +10,8 @@
 | **4. The room (core)** ✅ | 4–5 | LiveKit integration, go live / end, buyer viewing, chat, presence, product shelf, pin product, room UI desktop + mobile. Also: "Live now" strip with viewer counts, auto-close after the seller is gone 2 min, room closes on suspension |
 | **5. Queue & counter** ✅ | 5 | Queue join/leave/position, call next, counter publish permissions, auto-pin. Also: notes to the seller (contacts masked), skip, counter timer with "Time's up", 20 s grace so a refresh keeps your place |
 | **6. Sales & payments** ✅ (sandbox keys pending) | 6 | Offers, checkout sheet, STK push + callback, commission, B2B payout + result handling, orders for buyer & seller. Also: simulated M-Pesa mode until Daraja keys arrive, unpaid-order sweeper, callback secret, live notifications (toast + badges) for demo requests / orders / payouts / shops to review, "It's your turn" pop-up, "shop is live" alert for demo requesters |
-| **7. Admin & launch** (admin ✅) | 7 | Admin overview, transactions, payouts + retry, commission settings, live rooms, users; testing; switch to client's production accounts; go live. Done: overview, live rooms (watch invisibly + close), transactions + resolve held orders, payouts + safe retry, settings, per-shop commission, users. Left: add/remove admins, Daraja sandbox run-through, production accounts, go live |
+| **7. Admin & launch** (admin ✅) | 7 | Admin overview, transactions, payouts + retry, commission settings, live rooms, users; testing; switch to client's production accounts; go live. Done: overview, live rooms (watch invisibly + close), transactions + resolve held orders, payouts + safe retry, settings, per-shop commission, users. Left: Daraja sandbox run-through, production accounts, go live. Add/remove admins ✅ (the .env admin on Render is the owner and cannot be removed) |
+| **8. Client change requests (Nov 2026)** ✅ | 8 | Commission by price band (Entry 2% / Mid 3% / Premium 4% / Flagship 5%, default 2%, editable in Settings); product variations with their own price and stock; seller's **Send PAY button** pops a PAY prompt on the buyer's screen (no Till/Paybill read out); numbered receipts (buyer, seller, admin copies) with print animation, print and PDF; after-sales requests (buyer → seller → escalate to Meet2buy) with reference numbers; Terms of Use + Privacy Policy pages, required checkbox at every sign-up, footer links and "Developed by Fastweb Technologies". Buyer mic + camera at the counter was already in Sprint 5 |
 
 **Protect the core:** if time runs short, the room (Sprint 4) and payments (Sprint 6) take priority over admin polish.
 
@@ -18,9 +19,9 @@
 
 | Milestone | Trigger | Amount |
 |-----------|---------|--------|
-| Deposit | Before work starts | KES 32,000 (40%) |
-| Room demo | Seller can go live and buyers can watch, chat and queue (end of Sprint 5) | KES 24,000 (30%) |
-| Launch | Payments & payouts working, deployed to production | KES 24,000 (30%) |
+| Deposit | Invoiced Nov 15, 2026 (PI-20261115-M2B): mall, live rooms, queue, payments and admin built | KES 40,000 (50%) |
+| Milestone | M-Pesa payments tested end to end on the Daraja sandbox | KES 24,000 (30%) |
+| Completion | Before go-live and final handover | KES 16,000 (20%) |
 
 Running costs (hosting, video, database, Cloudinary, Safaricom charges, domain) are paid by the client directly on the client's accounts and are **not** part of the development fee.
 
@@ -32,13 +33,13 @@ Running costs (hosting, video, database, Cloudinary, Safaricom charges, domain) 
 - [ ] Accounts: LiveKit Cloud, MongoDB Atlas, Render, Cloudinary (add Fastweb as team member)
 - [~] Wing list for the mall: *Phones & Tablets* and *Home Appliances* confirmed from the client's examples; more wings to come
 - [ ] Logos from the pilot businesses (each business uploads its own from the seller dashboard)
-- [ ] Default commission %
-- [ ] Terms & conditions and privacy policy text (or approval of a draft)
+- [x] Default commission % — price bands confirmed (2–5%), default 2% (Nov 2026)
+- [~] Terms & conditions and privacy policy: draft written from the system (pages /terms and /privacy) — client to approve, ideally with a lawyer; set `VITE_SUPPORT_EMAIL` / `VITE_SUPPORT_PHONE`
 - [ ] 3–5 pilot sellers for testing before public launch
 
 ## 4. Open questions for the client
 
-1. **Default commission %?** And will some sellers have different rates?
+1. ~~Default commission %?~~ **Decided:** by price band (2/3/4/5%), default 2%; per-shop override still possible.
 2. **Who pays the Safaricom B2B fee** — Meet2buy (from commission) or deducted from the seller's payout?
 3. **Seller verification:** what documents should a seller provide (ID, KRA PIN, business registration) before approval?
 4. **Minimum order amount?** (very small orders may be eaten up by fees)
