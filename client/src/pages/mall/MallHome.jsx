@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ArrowDown, Search, Store } from 'lucide-react';
 import { FullLogo } from '../../components/Logo.jsx';
@@ -6,16 +6,14 @@ import { Button } from '../../components/ui/Button.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
 import { StatusPill } from '../../components/ui/StatusPill.jsx';
-import { LiveShopTile } from '../../features/mall/ShopSign.jsx';
+import { LiveShopTile, ShopCard } from '../../features/mall/ShopSign.jsx';
 import { EntranceDoors } from '../../features/mall/EntranceDoors.jsx';
-import { BrandSkus } from '../../features/mall/BrandSkus.jsx';
-import { ProductDialog } from '../../features/mall/ProductDialog.jsx';
-import { DemoRequestDialog } from '../../features/mall/DemoRequestDialog.jsx';
 import { useFetch } from '../../hooks/useFetch.js';
 import { api } from '../../services/api.js';
 
 // The mall entrance (owner's brief): Meet2buy is the mall, the businesses are the shops.
-// Keep it uncluttered — the Meet2buy sign, what this place is, and the shop signs inside.
+// Keep it uncluttered — the Meet2buy sign, what this place is, and the shops inside. No products here
+// (client brief, Nov 2026): shoppers choose a shop first and see its products inside the shop.
 
 function Stat({ value, label }) {
   return (
@@ -65,7 +63,7 @@ function Entrance({ totals, wingCount, onWalkIn }) {
   );
 }
 
-function WingSection({ wing, stores, skusFor, onOpen, onDemo }) {
+function WingSection({ wing, stores }) {
   return (
     <section aria-labelledby={`wing-${wing.slug}`} className="scroll-mt-24">
       <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-line pb-3">
@@ -77,16 +75,10 @@ function WingSection({ wing, stores, skusFor, onOpen, onDemo }) {
         </p>
       </div>
       {stores.length ? (
-        <ul className="space-y-6 sm:space-y-8">
+        <ul className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {stores.map((s) => (
             <li key={s.id}>
-              <BrandSkus
-                store={s}
-                wing={wing.slug}
-                products={skusFor(s, wing.slug)}
-                onOpen={(p) => onOpen(s, p)}
-                onDemo={(p) => onDemo(s, p)}
-              />
+              <ShopCard store={s} wing={wing.slug} />
             </li>
           ))}
         </ul>
@@ -105,9 +97,6 @@ export function MallHome() {
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
   const [walking, setWalking] = useState(false);
-  const productsReq = useFetch(() => api.get('/products'));
-  const [viewing, setViewing] = useState(null); // { store, product } in the details dialog
-  const [demo, setDemo] = useState(null); // { store, product } when the demo dialog is open
 
   const goToDirectory = (behavior) => {
     document.getElementById('directory')?.scrollIntoView({ behavior });
@@ -125,34 +114,10 @@ export function MallHome() {
   const stores = storesReq.data?.stores ?? [];
 
   const term = q.trim().toLowerCase();
-  const productsByStore = useMemo(() => {
-    const map = new Map();
-    for (const p of productsReq.data?.products ?? []) {
-      if (!map.has(p.store)) map.set(p.store, []);
-      map.get(p.store).push(p);
-    }
-    return map;
-  }, [productsReq.data]);
-
-  // A brand matches on its name or a department; otherwise on any of its SKUs (then only those SKUs show).
-  const brandMatches = (s) =>
-    s.name.toLowerCase().includes(term) || s.departments.some((d) => d.name.toLowerCase().includes(term));
+  // Shops match on their name or a department.
   const matches = !term
     ? stores
-    : stores.filter(
-        (s) => brandMatches(s) || (productsByStore.get(s.id) ?? []).some((p) => p.name.toLowerCase().includes(term)),
-      );
-
-  const skusFor = (store, wingSlug) => {
-    const inWing = new Set(store.departments.filter((d) => d.wing === wingSlug).map((d) => d.id));
-    const all = (productsByStore.get(store.id) ?? []).filter((p) => inWing.has(p.department));
-    return !term || brandMatches(store) ? all : all.filter((p) => p.name.toLowerCase().includes(term));
-  };
-  const openDemo = (store, product) => {
-    setViewing(null);
-    setDemo({ store, product });
-  };
-  const demoDepartment = demo?.product ? demo.store.departments.find((d) => d.id === demo.product.department) : null;
+    : stores.filter((s) => s.name.toLowerCase().includes(term) || s.departments.some((d) => d.name.toLowerCase().includes(term)));
 
   const live = stores.filter((s) => s.isLive);
   const shownWings = activeWing === 'all' ? wings : wings.filter((w) => w.slug === activeWing);
@@ -208,7 +173,7 @@ export function MallHome() {
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Find a shop, department or product"
+              placeholder="Find a shop or department"
               className="h-11 w-full rounded-btn border border-line bg-white pl-10 pr-3.5 text-[15px] focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/25"
             />
           </label>
@@ -241,33 +206,14 @@ export function MallHome() {
                 key={w.slug}
                 wing={w}
                 stores={matches.filter((s) => s.wings.includes(w.slug))}
-                skusFor={skusFor}
-                onOpen={(store, product) => setViewing({ store, product })}
-                onDemo={openDemo}
               />
             ))}
             {q && !matches.length && (
-              <p className="text-center text-muted">No shop, department or product matches &ldquo;{q}&rdquo;.</p>
+              <p className="text-center text-muted">No shop or department matches &ldquo;{q}&rdquo;.</p>
             )}
           </div>
         )}
       </section>
-
-      <ProductDialog
-        product={viewing?.product ?? null}
-        onClose={() => setViewing(null)}
-        onDemo={(product) => openDemo(viewing.store, product)}
-      />
-      {demo && (
-        <DemoRequestDialog
-          open
-          onClose={() => setDemo(null)}
-          store={demo.store}
-          department={demoDepartment}
-          products={productsByStore.get(demo.store.id) ?? []}
-          product={demo.product}
-        />
-      )}
 
       <section className="border-t border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-4 px-4 py-10 sm:flex-row sm:items-center sm:justify-between">
