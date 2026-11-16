@@ -46,8 +46,24 @@ function findLocal(room) {
   };
 }
 
+/**
+ * Browsers only allow the camera and microphone on https:// pages (and http://localhost). Opened as
+ * http://192.168.x.x from a phone, there is no permission prompt at all — so we say why.
+ */
+export const mediaAvailable = () => typeof window !== 'undefined' && window.isSecureContext && Boolean(navigator.mediaDevices?.getUserMedia);
+
+function assertMedia() {
+  if (mediaAvailable()) return;
+  const err = new Error('insecure');
+  err.name = 'InsecureContext';
+  throw err;
+}
+
 /** Turns browser media errors into words a seller can act on. */
 export function mediaErrorMessage(err) {
+  if (err?.name === 'InsecureContext') {
+    return 'This browser blocks the camera and microphone on this address. Open Meet2buy from its https:// link (not an http:// or IP address) and try again.';
+  }
   if (err?.name === 'NotAllowedError') {
     return 'Your browser blocked the camera or microphone. Allow them for this site (the camera icon in the address bar), then try again.';
   }
@@ -58,6 +74,7 @@ export function mediaErrorMessage(err) {
 
 /** Camera + mic preview for the seller before going live (720p, published later with simulcast). */
 export async function startCameraAndMic() {
+  assertMedia();
   return createLocalTracks({
     audio: { echoCancellation: true, noiseSuppression: true },
     video: { resolution: VideoPresets.h720.resolution, facingMode: 'user' },
@@ -150,12 +167,14 @@ export function useLiveKit({ url, token, publish = null }) {
   const setMic = useCallback(async (enabled) => {
     const room = roomRef.current;
     if (!room) throw new Error('Not connected');
+    if (enabled) assertMedia();
     await room.localParticipant.setMicrophoneEnabled(enabled, { echoCancellation: true, noiseSuppression: true });
     setLocal(findLocal(room));
   }, []);
   const setCamera = useCallback(async (enabled) => {
     const room = roomRef.current;
     if (!room) throw new Error('Not connected');
+    if (enabled) assertMedia();
     await room.localParticipant.setCameraEnabled(enabled, { resolution: VideoPresets.h360.resolution, facingMode: 'user' });
     setLocal(findLocal(room));
   }, []);

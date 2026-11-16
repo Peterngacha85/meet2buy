@@ -130,7 +130,7 @@ function Room({ store, session, products }) {
           return;
         } catch (err) {
           if (cancelled) return;
-          if (['NotAllowedError', 'NotFoundError', 'NotReadableError'].includes(err?.name)) {
+          if (['NotAllowedError', 'NotFoundError', 'NotReadableError', 'InsecureContext'].includes(err?.name)) {
             setCounterError(mediaErrorMessage(err).replace('camera or microphone', 'microphone') + ' You can type in the chat instead.');
             setMicWanted(false);
             return;

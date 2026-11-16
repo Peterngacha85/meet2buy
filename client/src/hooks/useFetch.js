@@ -12,8 +12,9 @@ const REFOCUS_AFTER_MS = 15_000;
  * of these topics changed (or the connection comes back, or you return to the tab after a while), the
  * data is refetched quietly — no spinner, and the old data stays on screen if the refetch fails.
  * Leave it off for pages with forms, so nobody's half-typed edits are replaced.
+ * `poll: 30_000` also refetches quietly on a timer while the tab is visible (e.g. "N watching" counts).
  */
-export function useFetch(request, deps = [], { live = null } = {}) {
+export function useFetch(request, deps = [], { live = null, poll = 0 } = {}) {
   const [state, setState] = useState({ data: null, loading: true, error: null });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,6 +72,12 @@ export function useFetch(request, deps = [], { live = null } = {}) {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [topics, refresh]);
+
+  useEffect(() => {
+    if (!poll) return undefined;
+    const t = setInterval(() => !document.hidden && refresh(), poll);
+    return () => clearInterval(t);
+  }, [poll, refresh]);
 
   const setData = useCallback((update) => {
     setState((s) => ({ ...s, data: typeof update === 'function' ? update(s.data) : update }));

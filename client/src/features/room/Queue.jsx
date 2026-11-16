@@ -9,6 +9,7 @@ import { Textarea } from '../../components/ui/Field.jsx';
 import { FormError } from '../../pages/auth/AuthCard.jsx';
 import { ProductImage } from '../mall/ProductCard.jsx';
 import { clock, useElapsedSeconds } from './useElapsed.js';
+import { mediaAvailable, mediaErrorMessage } from './useLiveKit.js';
 import { kes } from '../../utils/format.js';
 
 const NOTE_MAX = 140;
@@ -112,8 +113,12 @@ export function BuyerQueueCard({ rt, lk, micWanted, onMicToggle, counterError, o
       setCamError('');
       try {
         await lk.setCamera(!lk.local.camera);
-      } catch {
-        setCamError('Could not turn on your camera. The seller can still hear you.');
+      } catch (err) {
+        setCamError(
+          ['InsecureContext', 'NotAllowedError', 'NotFoundError', 'NotReadableError'].includes(err?.name)
+            ? mediaErrorMessage(err)
+            : 'Could not turn on your camera. The seller can still hear you.',
+        );
       } finally {
         setCamBusy(false);
       }
@@ -384,7 +389,13 @@ export function TurnModal({ open, storeName, product, onJoin, onDecline }) {
             Not now — give my turn to the next shopper
           </Button>
         </div>
-        <p className="mt-3 text-xs text-muted">Your browser will ask to use your microphone{' '}— tap Allow.</p>
+        {mediaAvailable() ? (
+          <p className="mt-3 text-xs text-muted">Your browser will ask to use your microphone — tap Allow.</p>
+        ) : (
+          <p className="mt-3 rounded-btn bg-[#FDE8E7] px-3 py-2 text-left text-sm text-danger">
+            {mediaErrorMessage({ name: 'InsecureContext' })} You can still type in the chat.
+          </p>
+        )}
       </div>
     </Dialog>
   );
