@@ -160,9 +160,11 @@ export function SellerOrders() {
                           Mark shipped
                         </Button>
                       )}
-                      <Button size="sm" variant="primary" onClick={() => mark(o, 'delivered')} loading={busy === `${o.id}-delivered`}>
-                        Mark delivered
-                      </Button>
+                      {o.status !== 'delivered' && (
+                        <Button size="sm" variant="primary" onClick={() => mark(o, 'delivered')} loading={busy === `${o.id}-delivered`}>
+                          Mark delivered
+                        </Button>
+                      )}
                     </div>
                   )}
                 </Card>
