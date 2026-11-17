@@ -9,7 +9,7 @@ import { Textarea } from '../../components/ui/Field.jsx';
 import { FormError } from '../../pages/auth/AuthCard.jsx';
 import { ProductImage } from '../mall/ProductCard.jsx';
 import { clock, useElapsedSeconds } from './useElapsed.js';
-import { mediaAvailable, mediaErrorMessage } from './useLiveKit.js';
+import { isDeviceBusy, mediaAvailable, mediaErrorMessage } from './useLiveKit.js';
 import { kes } from '../../utils/format.js';
 
 const NOTE_MAX = 140;
@@ -81,7 +81,7 @@ export function JoinQueueDialog({ open, product, onClose, onJoin, waiting }) {
 }
 
 /** Buyer's side of the queue: join, your position, or "you're at the counter" with mic/camera controls. */
-export function BuyerQueueCard({ rt, lk, micWanted, onMicToggle, counterError, onJoin }) {
+export function BuyerQueueCard({ rt, lk, micWanted, onMicToggle, counterError, onDeviceBusy, onJoin }) {
   const location = useLocation();
   const [camBusy, setCamBusy] = useState(false);
   const [camError, setCamError] = useState('');
@@ -114,6 +114,7 @@ export function BuyerQueueCard({ rt, lk, micWanted, onMicToggle, counterError, o
       try {
         await lk.setCamera(!lk.local.camera);
       } catch (err) {
+        if (isDeviceBusy(err) && onDeviceBusy) return onDeviceBusy('camera');
         setCamError(
           ['InsecureContext', 'NotAllowedError', 'NotFoundError', 'NotReadableError'].includes(err?.name)
             ? mediaErrorMessage(err)

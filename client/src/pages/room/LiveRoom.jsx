@@ -15,7 +15,8 @@ import { CheckoutDialog } from '../../features/commerce/CheckoutDialog.jsx';
 import { PayPrompt } from '../../features/commerce/PayPrompt.jsx';
 import { OfferCard } from '../../features/commerce/Offers.jsx';
 import { askNotificationPermission, chime, flashTitle, systemNotify } from '../../store/notifyStore.js';
-import { mediaErrorMessage, useLiveKit } from '../../features/room/useLiveKit.js';
+import { isDeviceBusy, mediaErrorMessage, useLiveKit } from '../../features/room/useLiveKit.js';
+import { DeviceBusyDialog } from '../../features/room/DeviceBusyDialog.jsx';
 import { useRoomSocket } from '../../features/room/useRoomSocket.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useFetch } from '../../hooks/useFetch.js';
@@ -55,6 +56,7 @@ function Room({ store, session, products }) {
   const [camWanted, setCamWanted] = useState(false);
   const [turnOpen, setTurnOpen] = useState(false);
   const [counterError, setCounterError] = useState('');
+  const [deviceBusy, setDeviceBusy] = useState(null); // 'microphone' | 'camera' while another app holds it
   const usedCounterToken = useRef(false);
   const { setMic, setCamera, stopPublishing } = lk;
   const reloadToken = tokenReq.reload;
@@ -72,7 +74,9 @@ function Room({ store, session, products }) {
   useEffect(() => {
     if (!atCounter || !camWanted || !lk.local.mic || lk.local.camera) return;
     setCamWanted(false);
-    setCamera(true).catch(() => setCounterError('Could not turn on your camera. The seller can still hear you.'));
+    setCamera(true).catch((err) =>
+      isDeviceBusy(err) ? setDeviceBusy('camera') : setCounterError('Could not turn on your camera. The seller can still hear you.'),
+    );
   }, [atCounter, camWanted, lk.local.mic, lk.local.camera, setCamera]);
 
   // Came from a demo invite (?ask=<productId>): open "Join the queue" with that product, once.
@@ -106,6 +110,7 @@ function Room({ store, session, products }) {
     setTurnOpen(false);
     setMicWanted(false);
     setCamWanted(false);
+    setDeviceBusy(null);
     stopPublishing();
     // Reconnected with a counter token earlier: go back to a watch-only token.
     if (usedCounterToken.current) {
@@ -130,6 +135,11 @@ function Room({ store, session, products }) {
           return;
         } catch (err) {
           if (cancelled) return;
+          if (isDeviceBusy(err)) {
+            setMicWanted(false);
+            setDeviceBusy('microphone');
+            return;
+          }
           if (['NotAllowedError', 'NotFoundError', 'NotReadableError', 'InsecureContext'].includes(err?.name)) {
             setCounterError(mediaErrorMessage(err).replace('camera or microphone', 'microphone') + ' You can type in the chat instead.');
             setMicWanted(false);
@@ -280,6 +290,7 @@ function Room({ store, session, products }) {
               micWanted={micWanted}
               onMicToggle={() => setMicWanted((v) => !v)}
               counterError={counterError}
+              onDeviceBusy={setDeviceBusy}
               onJoin={openJoin}
             />
           </div>
@@ -362,6 +373,24 @@ function Room({ store, session, products }) {
         onDecline={async () => {
           setTurnOpen(false);
           await rt.leaveQueue();
+        }}
+      />
+      <DeviceBusyDialog
+        device={atCounter ? deviceBusy : null}
+        onRetry={() => {
+          const device = deviceBusy;
+          setDeviceBusy(null);
+          setCounterError('');
+          if (device === 'microphone') setMicWanted(true); // the mic effect tries again
+          else setCamera(true).catch((err) => (isDeviceBusy(err) ? setDeviceBusy('camera') : setCounterError(mediaErrorMessage(err))));
+        }}
+        onSkip={() => {
+          setCounterError(
+            deviceBusy === 'microphone'
+              ? 'Your microphone is off. Type your questions in the chat, or tap Unmute when your other call ends.'
+              : 'Your camera is off. The seller can still hear you.',
+          );
+          setDeviceBusy(null);
         }}
       />
       <PayPrompt offers={rt.offers} onPay={(offer) => setBuying({ offer })} />

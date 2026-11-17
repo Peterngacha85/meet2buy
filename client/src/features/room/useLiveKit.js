@@ -59,6 +59,13 @@ function assertMedia() {
   throw err;
 }
 
+/**
+ * The camera/mic exists and is allowed, but another app holds it (a WhatsApp or phone call, Zoom…).
+ * Chrome says NotReadableError ("Could not start video source"), Firefox AbortError, old Chrome TrackStartError.
+ */
+export const isDeviceBusy = (err) =>
+  ['NotReadableError', 'AbortError', 'TrackStartError'].includes(err?.name) || /could not start (video|audio) source/i.test(err?.message ?? '');
+
 /** Turns browser media errors into words a seller can act on. */
 export function mediaErrorMessage(err) {
   if (err?.name === 'InsecureContext') {
