@@ -30,7 +30,8 @@ export function errorHandler(err, req, res, _next) {
 
   if (status >= 500) {
     logger.error(req.method, req.originalUrl, err);
-    if (isProd) message = 'Something went wrong. Please try again.';
+    // Our own AppErrors (e.g. "M-Pesa did not accept the request") are written for users; only hide unexpected ones.
+    if (isProd && !err.isOperational) message = 'Something went wrong. Please try again.';
   }
 
   res.status(status).json({ success: false, message, ...(errors ? { errors } : {}) });
