@@ -24,7 +24,8 @@ router.post('/uploads/signature', protect, validate(uploadSignatureSchema), uplo
 router.use('/admin', announces('sellers', 'store', 'orders', 'payouts', 'rooms', 'users', 'settings', 'mall'), adminRoutes);
 router.use('/rooms', announces('rooms', 'mall', 'store'), roomRoutes);
 router.use('/orders', announces('orders'), orderRoutes);
-router.use('/mpesa', mpesaRoutes);
+// Safaricom rejects callback URLs containing "mpesa"/"safaricom", so these live under /pay.
+router.use('/pay', mpesaRoutes);
 router.use('/support', announces('support'), supportRoutes);
 
 export default router;

@@ -26,7 +26,7 @@ export class MpesaError extends Error {
 
 /** Our callback URL for a Daraja route, with the shared secret when one is set. */
 export function callbackUrl(path) {
-  const url = `${env.API_PUBLIC_URL?.replace(/\/$/, '')}/api/mpesa/${path}`;
+  const url = `${env.API_PUBLIC_URL?.replace(/\/$/, '')}/api/pay/${path}`;
   return env.MPESA_CALLBACK_TOKEN ? `${url}?t=${encodeURIComponent(env.MPESA_CALLBACK_TOKEN)}` : url;
 }
 

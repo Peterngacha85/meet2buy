@@ -73,7 +73,7 @@ Checkout with variations: `variant` is the choice `{ Storage: '256GB', Colour: '
 
 Also: `GET /api/auth/badges` (👤) → sidebar counts `{ requests, orders, support }` for sellers, `{ pendingSellers, support }` for admins (support = after-sales requests waiting for them). Live updates arrive as the Socket.io `notify` event `{ type, title, body, link, action? }`.
 
-## M-Pesa callbacks — `/api/mpesa` (called by Safaricom, no auth)
+## M-Pesa callbacks — `/api/pay` (called by Safaricom, no auth)
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/stk/callback` | STK push result → mark payment, then trigger payout |

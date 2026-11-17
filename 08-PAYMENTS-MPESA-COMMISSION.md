@@ -38,7 +38,7 @@ POST /api/orders/checkout
 Buyer enters M-Pesa PIN on phone
    │
    ▼
-Safaricom → POST /api/mpesa/stk/callback
+Safaricom → POST /api/pay/stk/callback
    ├─ log raw payload (mpesaLogs)
    ├─ find Payment by CheckoutRequestID (ignore if already final → idempotent)
    ├─ ResultCode ≠ 0 → payment failed/cancelled → order payment_failed
@@ -55,13 +55,13 @@ Safaricom → POST /api/mpesa/stk/callback
         └─ payoutService.send(payout)  → B2B request
               │
               ▼
-Safaricom → POST /api/mpesa/b2b/result
+Safaricom → POST /api/pay/b2b/result
    ├─ log raw payload
    ├─ find Payout by ConversationID
    ├─ ResultCode = 0 → completed (save TransactionID)
    └─ else → failed (save ResultDesc) → visible in admin Payouts → Retry
 
-Safaricom → POST /api/mpesa/b2b/timeout   (request sat in Safaricom's queue too long)
+Safaricom → POST /api/pay/b2b/timeout   (request sat in Safaricom's queue too long)
    ├─ log raw payload
    ├─ payout stays processing — do NOT mark failed yet
    └─ run Transaction Status query → completed or failed based on the real outcome
@@ -107,7 +107,7 @@ Rules:
 - `AccountReference`: the order number (e.g. `M2B-24A7K9`) — max 12 characters.
 - `TransactionDesc`: short, e.g. "Meet2buy order".
 - `PhoneNumber` / `PartyA`: buyer phone in `2547XXXXXXXX` format.
-- `CallBackURL`: `API_PUBLIC_URL/api/mpesa/stk/callback`.
+- `CallBackURL`: `API_PUBLIC_URL/api/pay/stk/callback`.
 
 **Timeouts:** if no callback within ~2 minutes, call the **STK Push Query** API with the CheckoutRequestID to get the final status. Buyer sees "Didn't get the prompt? Try again".
 
@@ -124,7 +124,7 @@ Rules:
 - `Amount`: payoutAmount.
 - `PartyA`: Meet2buy shortcode.
 - `Remarks`: order number.
-- `QueueTimeOutURL` and `ResultURL`: our `/api/mpesa/b2b/timeout` and `/api/mpesa/b2b/result`.
+- `QueueTimeOutURL` and `ResultURL`: our `/api/pay/b2b/timeout` and `/api/pay/b2b/result`.
 
 The B2B request response only means "accepted for processing"; the real outcome comes in the **result callback**.
 

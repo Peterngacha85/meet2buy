@@ -103,7 +103,7 @@ async function buy(buyer, productId) {
 }
 function stkPaid(checkoutRequestId, amount, receipt) {
   return request(app)
-    .post(`/api/mpesa/stk/callback?t=${TOKEN}`)
+    .post(`/api/pay/stk/callback?t=${TOKEN}`)
     .send({
       Body: {
         stkCallback: {
@@ -276,7 +276,7 @@ describe('Admin: held orders and payouts', () => {
       return p?.conversationId ? p : null;
     });
     await request(app)
-      .post(`/api/mpesa/b2b/result?t=${TOKEN}`)
+      .post(`/api/pay/b2b/result?t=${TOKEN}`)
       .send({ Result: { ResultCode: 2001, ResultDesc: 'The initiator information is invalid.', ConversationID: payout.conversationId } });
     await until(async () => (await Payout.findById(payout._id)).status === 'failed');
 
@@ -303,7 +303,7 @@ describe('Admin: held orders and payouts', () => {
 
     // Completed payouts can't be retried.
     const done = await Payout.findById(payout._id);
-    await request(app).post(`/api/mpesa/b2b/result?t=${TOKEN}`).send({ Result: { ResultCode: 0, ResultDesc: 'ok', ConversationID: done.conversationId, TransactionID: 'TXOK' } });
+    await request(app).post(`/api/pay/b2b/result?t=${TOKEN}`).send({ Result: { ResultCode: 0, ResultDesc: 'ok', ConversationID: done.conversationId, TransactionID: 'TXOK' } });
     await until(async () => (await Payout.findById(payout._id)).status === 'completed');
     expect((await request(app).post(`/api/admin/payouts/${payout.id}/retry`).set('Cookie', admin)).status).toBe(409);
   });

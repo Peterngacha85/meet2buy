@@ -5,7 +5,7 @@ import { applyB2BResult, applyB2BTimeout, applyStatusResult } from '../services/
 import { logger } from '../utils/logger.js';
 import { changed } from '../services/liveService.js';
 
-// Called by Safaricom (doc 06 /api/mpesa). Rule 7: answer 200 at once, then process.
+// Called by Safaricom (doc 06 /api/pay). Rule 7: answer 200 at once, then process.
 // Rule 5: every callback is logged raw first.
 
 const ACCEPTED = { ResultCode: 0, ResultDesc: 'Accepted' };

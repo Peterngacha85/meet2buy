@@ -115,12 +115,12 @@ function stkCallback(checkoutRequestId, { code = 0, amount, receipt = 'SKA1B2C3D
       },
     },
   };
-  return request(app).post(`/api/mpesa/stk/callback?t=${TOKEN}`).send(body);
+  return request(app).post(`/api/pay/stk/callback?t=${TOKEN}`).send(body);
 }
 
 const b2bResult = (conversationId, code = 0) =>
   request(app)
-    .post(`/api/mpesa/b2b/result?t=${TOKEN}`)
+    .post(`/api/pay/b2b/result?t=${TOKEN}`)
     .send({ Result: { ResultType: 0, ResultCode: code, ResultDesc: code ? 'Insufficient funds' : 'Success', ConversationID: conversationId, OriginatorConversationID: 'x', TransactionID: 'TX123' } });
 
 describe('Checkout → STK → payout', () => {
@@ -426,7 +426,7 @@ describe('Checkout → STK → payout', () => {
     const order = await Order.findById((await checkout(buyer, { productId: product.id })).body.data.order.id);
     const { checkoutRequestId } = await Payment.findById(order.payment);
     const forged = await request(app)
-      .post('/api/mpesa/stk/callback')
+      .post('/api/pay/stk/callback')
       .send({ Body: { stkCallback: { CheckoutRequestID: checkoutRequestId, ResultCode: 0, CallbackMetadata: { Item: [{ Name: 'Amount', Value: 2500 }, { Name: 'MpesaReceiptNumber', Value: 'FAKE' }] } } } });
     expect(forged.status).toBe(200);
     await sleep(150);
